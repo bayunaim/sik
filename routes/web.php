@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Anggaran\Index as AnggaranIndex;
+use App\Livewire\Tagihan\Index as TagihanIndex;
 
 // Tamu
 Route::middleware('guest')->group(function () {
@@ -34,6 +35,7 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
         Route::get('/tarif-biaya', TarifIndex::class)->name('tarif.index');
         Route::get('/mahasiswa', MahasiswaIndex::class)->name('mahasiswa.index');
         Route::get('/anggaran', AnggaranIndex::class)->name('anggaran.index');
+        Route::get('/tagihan', TagihanIndex::class)->name('tagihan.index');
     });
 
     // Sistem

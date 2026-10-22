@@ -130,6 +130,11 @@ class Index extends Component
     {
         abort_unless(auth()->user()->can('master.kelola'), 403);
 
+        if (\App\Models\Tagihan::where('mahasiswa_id', $id)->exists()) {
+            session()->flash('gagal', 'Tidak bisa dihapus: mahasiswa ini sudah punya tagihan. Ubah status akademiknya saja.');
+            return;
+        }
+
         // Fase 2: tolak jika mahasiswa sudah punya tagihan/pembayaran.
         Mahasiswa::findOrFail($id)->delete();
         session()->flash('sukses', 'Mahasiswa berhasil dihapus.');
