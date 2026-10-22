@@ -10,6 +10,7 @@ use App\Livewire\Master\TahunAnggaran\Index as TahunIndex;
 use App\Livewire\Master\ChartOfAccount\Index as CoaIndex;
 use App\Livewire\Master\KomponenBiaya\Index as KomponenIndex;
 use App\Livewire\Master\TarifBiaya\Index as TarifIndex;
+use App\Livewire\Master\Mahasiswa\Index as MahasiswaIndex;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
@@ -34,4 +35,5 @@ Route::prefix('master')->name('master.')->group(function () {
     Route::get('/chart-of-accounts', CoaIndex::class)->name('coa.index');
     Route::get('/komponen-biaya', KomponenIndex::class)->name('komponen.index');
     Route::get('/tarif-biaya', TarifIndex::class)->name('tarif.index');
+    Route::get('/mahasiswa', MahasiswaIndex::class)->name('mahasiswa.index');
 });
