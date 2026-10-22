@@ -5,6 +5,9 @@ use App\Livewire\Dashboard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Livewire\Master\ProgramStudi\Index as ProdiIndex;
+use App\Livewire\Master\TahunAnggaran\Index as TahunIndex;
+use App\Livewire\Master\ChartOfAccount\Index as CoaIndex;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
@@ -21,4 +24,10 @@ Route::middleware('auth')->group(function () {
 
         return redirect()->route('login');
     })->name('logout');
+});
+
+Route::prefix('master')->name('master.')->group(function () {
+    Route::get('/program-studi', ProdiIndex::class)->name('prodi.index');
+    Route::get('/tahun-anggaran', TahunIndex::class)->name('tahun.index');
+    Route::get('/chart-of-accounts', CoaIndex::class)->name('coa.index');
 });

@@ -22,6 +22,30 @@
             background: currentColor;
         }
     </style>
+    <style>
+        .sidebar-nav .nav-icon[class*="cil-"] {
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .sidebar-nav .nav-icon-bullet {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        @media (min-width: 992px) {
+            .sidebar~.wrapper {
+                padding-inline-start: 16rem;
+            }
+
+            .sidebar.sidebar-narrow~.wrapper {
+                padding-inline-start: 4rem;
+            }
+        }
+    </style>
     @livewireStyles
 </head>
 
