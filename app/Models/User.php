@@ -11,10 +11,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
 
     protected $fillable = ['name', 'email', 'password', 'batas_persetujuan', 'is_active'];
 
@@ -26,5 +28,13 @@ class User extends Authenticatable
             'batas_persetujuan' => 'decimal:2',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'batas_persetujuan', 'is_active'])
+            ->logOnlyDirty()
+            ->useLogName('users');
     }
 }
