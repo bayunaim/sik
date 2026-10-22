@@ -13,6 +13,7 @@ use App\Livewire\User\Index as UserIndex;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Livewire\Anggaran\Index as AnggaranIndex;
 
 // Tamu
 Route::middleware('guest')->group(function () {
@@ -32,6 +33,7 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
         Route::get('/komponen-biaya', KomponenIndex::class)->name('komponen.index');
         Route::get('/tarif-biaya', TarifIndex::class)->name('tarif.index');
         Route::get('/mahasiswa', MahasiswaIndex::class)->name('mahasiswa.index');
+        Route::get('/anggaran', AnggaranIndex::class)->name('anggaran.index');
     });
 
     // Sistem
