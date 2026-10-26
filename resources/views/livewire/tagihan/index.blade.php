@@ -2,9 +2,14 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Tagihan Mahasiswa</h4>
         @can('tagihan.buat')
-            <button class="btn btn-primary" wire:click="tambah">
-                <i class="cil-plus me-1"></i> Buat Tagihan
-            </button>
+            <div class="d-flex gap-2">
+                <a href="{{ route('tagihan.massal') }}" class="btn btn-outline-primary">
+                    <i class="cil-library me-1"></i> Tagihan Massal
+                </a>
+                <button class="btn btn-primary" wire:click="tambah">
+                    <i class="cil-plus me-1"></i> Buat Tagihan
+                </button>
+            </div>
         @endcan
     </div>
 
@@ -187,7 +192,8 @@
                                 <option value="">- Pilih kode anggaran -</option>
                                 @foreach ($daftarAnggaran as $a)
                                     <option value="{{ $a->id }}">{{ $a->kode }} - {{ $a->nama }}
-                                        ({{ $a->tahun->nama }})</option>
+                                        ({{ $a->tahun->nama }})
+                                    </option>
                                 @endforeach
                             </select>
                             @error('anggaran_id')
