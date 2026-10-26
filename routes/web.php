@@ -20,6 +20,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Livewire\Penerimaan\Index as PenerimaanIndex;
 
 // Tamu
 Route::middleware('guest')->group(function () {
@@ -56,6 +58,19 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
 
         return response()->file(Storage::disk('local')->path($pembayaran->bukti_path));
     })->name('pembayaran.bukti');
+
+    Route::get('/pembayaran/{pembayaran}/kwitansi', function (Pembayaran $pembayaran) {
+        abort_unless(auth()->user()->can('pembayaran.lihat'), 403);
+        abort_unless($pembayaran->status === Pembayaran::TERVERIFIKASI, 404);
+
+        $pembayaran->load(['mahasiswa', 'tagihan.komponen', 'pemverifikasi']);
+
+        return Pdf::loadView('pdf.kwitansi', ['p' => $pembayaran])
+            ->setPaper('a5', 'landscape')
+            ->stream('Kwitansi-'.str_replace('/', '-', $pembayaran->nomor_kwitansi).'.pdf');
+    })->name('pembayaran.kwitansi');
+
+    Route::get('/penerimaan', PenerimaanIndex::class)->name('penerimaan.index');
 
     Route::get('/jurnal', JurnalIndex::class)->name('jurnal.index');
 

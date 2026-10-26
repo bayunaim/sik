@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use DomainException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use App\Models\PenerimaanDana;
 
 class JurnalService
 {
@@ -168,5 +169,32 @@ class JurnalService
                 'jurnal_asal_id' => $a->id,
             ], $baris, $user);
         });
+    }
+
+    /** Penerimaan non-mahasiswa: Debit Kas/Bank, Kredit Hibah/Pendapatan lain. */
+    public function untukPenerimaan(PenerimaanDana $p, string $metode, User $user): Jurnal
+    {
+        $kodeKas = $metode === 'Tunai' ? self::AKUN_KAS : self::AKUN_BANK;
+        $kodePendapatan = in_array($p->sumber, ['hibah', 'donasi'], true) ? '4210' : '4290';
+
+        $akunKas = ChartOfAccount::where('kode', $kodeKas)->where('is_active', true)->value('id')
+            ?? throw new DomainException("Akun {$kodeKas} (Kas/Bank) belum tersedia.");
+        $akunPendapatan = ChartOfAccount::where('kode', $kodePendapatan)->where('is_active', true)->value('id')
+            ?? throw new DomainException("Akun {$kodePendapatan} belum tersedia di Chart of Accounts.");
+
+        $ket = 'Penerimaan '.ucfirst($p->sumber).($p->keterangan ? ": {$p->keterangan}" : '');
+
+        return $this->buat([
+            'tanggal' => $p->tanggal,
+            'tahun_anggaran_id' => $p->tahun_anggaran_id,
+            'keterangan' => $ket,
+            'jenis' => Jurnal::OTOMATIS,
+            'sumber_type' => PenerimaanDana::class,
+            'sumber_id' => $p->id,
+            'kunci_sumber' => 'penerimaan:'.$p->id,
+        ], [
+            ['akun_id' => $akunKas, 'debit' => $p->nominal, 'kredit' => 0, 'keterangan' => $ket],
+            ['akun_id' => $akunPendapatan, 'debit' => 0, 'kredit' => $p->nominal, 'keterangan' => $ket],
+        ], $user);
     }
 }

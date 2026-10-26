@@ -95,6 +95,10 @@
                                 @endif
                             </td>
                             <td class="text-end text-nowrap">
+                                @if ($row->status === 'terverifikasi')
+                                    <a href="{{ route('pembayaran.kwitansi', $row->id) }}" target="_blank"
+                                        class="btn btn-sm btn-outline-primary">Kwitansi</a>
+                                @endif
                                 @can('pembayaran.verifikasi')
                                     @if ($row->status === 'pending')
                                         <button class="btn btn-sm btn-success" wire:click="verifikasi({{ $row->id }})"
