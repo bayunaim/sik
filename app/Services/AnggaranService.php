@@ -15,17 +15,27 @@ class AnggaranService
      */
     public function realisasi(Collection $anggaran): array
     {
+        $ids = $anggaran->pluck('id');
+
         $tercapai = DB::table('penerimaan_dana')
             ->whereNull('deleted_at')
-            ->whereIn('anggaran_id', $anggaran->pluck('id'))
+            ->whereIn('anggaran_id', $ids)
             ->selectRaw('anggaran_id, SUM(nominal) as total')
             ->groupBy('anggaran_id')
             ->pluck('total', 'anggaran_id');
 
-        return $anggaran->mapWithKeys(fn ($a) => [
-            $a->id => $a->tipe === 'D'
-                ? (string) BigDecimal::of((string) ($tercapai[$a->id] ?? '0'))->toScale(2)
-                : '0.00',
-        ])->all();
+        $terpakai = DB::table('pengeluaran')
+            ->whereNull('deleted_at')
+            ->where('status', 'disetujui')
+            ->whereIn('anggaran_id', $ids)
+            ->selectRaw('anggaran_id, SUM(nominal) as total')
+            ->groupBy('anggaran_id')
+            ->pluck('total', 'anggaran_id');
+
+        return $anggaran->mapWithKeys(function ($a) use ($tercapai, $terpakai) {
+            $sumber = $a->tipe === 'D' ? $tercapai : $terpakai;
+
+            return [$a->id => (string) BigDecimal::of((string) ($sumber[$a->id] ?? '0'))->toScale(2)];
+        })->all();
     }
 }

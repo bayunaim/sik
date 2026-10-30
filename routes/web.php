@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Livewire\Penerimaan\Index as PenerimaanIndex;
+use App\Livewire\Pengeluaran\Index as PengeluaranIndex;
+use App\Models\Pengeluaran;
 
 // Tamu
 Route::middleware('guest')->group(function () {
@@ -71,6 +73,15 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
     })->name('pembayaran.kwitansi');
 
     Route::get('/penerimaan', PenerimaanIndex::class)->name('penerimaan.index');
+
+    Route::get('/pengeluaran', PengeluaranIndex::class)->name('pengeluaran.index');
+
+    Route::get('/pengeluaran/{pengeluaran}/lampiran', function (Pengeluaran $pengeluaran) {
+        abort_unless(auth()->user()->can('pengeluaran.lihat'), 403);
+        abort_unless($pengeluaran->lampiran_path && Storage::disk('local')->exists($pengeluaran->lampiran_path), 404);
+
+        return response()->file(Storage::disk('local')->path($pengeluaran->lampiran_path));
+    })->name('pengeluaran.lampiran');
 
     Route::get('/jurnal', JurnalIndex::class)->name('jurnal.index');
 

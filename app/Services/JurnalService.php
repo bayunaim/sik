@@ -14,6 +14,7 @@ use DomainException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use App\Models\PenerimaanDana;
+use App\Models\Pengeluaran;
 
 class JurnalService
 {
@@ -195,6 +196,30 @@ class JurnalService
         ], [
             ['akun_id' => $akunKas, 'debit' => $p->nominal, 'kredit' => 0, 'keterangan' => $ket],
             ['akun_id' => $akunPendapatan, 'debit' => 0, 'kredit' => $p->nominal, 'keterangan' => $ket],
+        ], $user);
+    }
+
+    /** Pengeluaran disetujui: Debit Beban, Kredit Kas/Bank (FR-063, FR-074). */
+    public function untukPengeluaran(Pengeluaran $p, User $user): Jurnal
+    {
+        $kodeKas = $p->metode === 'Tunai' ? self::AKUN_KAS : self::AKUN_BANK;
+
+        $akunKas = ChartOfAccount::where('kode', $kodeKas)->where('is_active', true)->value('id')
+            ?? throw new DomainException("Akun {$kodeKas} (Kas/Bank) belum tersedia di Chart of Accounts.");
+
+        $ket = "Pengeluaran {$p->nomor}: {$p->keperluan}";
+
+        return $this->buat([
+            'tanggal' => $p->tanggal,
+            'tahun_anggaran_id' => $p->tahun_anggaran_id,
+            'keterangan' => $ket,
+            'jenis' => Jurnal::OTOMATIS,
+            'sumber_type' => Pengeluaran::class,
+            'sumber_id' => $p->id,
+            'kunci_sumber' => 'pengeluaran:'.$p->id,
+        ], [
+            ['akun_id' => $p->akun_beban_id, 'debit' => $p->nominal, 'kredit' => 0, 'keterangan' => $ket],
+            ['akun_id' => $akunKas, 'debit' => 0, 'kredit' => $p->nominal, 'keterangan' => $ket],
         ], $user);
     }
 }
