@@ -24,6 +24,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Livewire\Penerimaan\Index as PenerimaanIndex;
 use App\Livewire\Pengeluaran\Index as PengeluaranIndex;
 use App\Models\Pengeluaran;
+use App\Http\Controllers\LaporanController;
+use App\Livewire\Laporan\Tampil as LaporanTampil;
 
 // Tamu
 Route::middleware('guest')->group(function () {
@@ -84,6 +86,15 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
     })->name('pengeluaran.lampiran');
 
     Route::get('/jurnal', JurnalIndex::class)->name('jurnal.index');
+
+    // Laporan
+    Route::get('/laporan/jurnal', LaporanTampil::class)->defaults('jenis', 'jurnal')->name('laporan.jurnal');
+    Route::get('/laporan/tunggakan', LaporanTampil::class)->defaults('jenis', 'tunggakan')->name('laporan.tunggakan');
+    Route::get('/laporan/capaian', LaporanTampil::class)->defaults('jenis', 'capaian')->name('laporan.capaian');
+    Route::get('/laporan/{jenis}/ekspor/{format}', [LaporanController::class, 'ekspor'])
+    ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian'])
+    ->whereIn('format', ['pdf', 'xlsx'])
+    ->name('laporan.ekspor');
 
     // Sistem
     Route::get('/pengguna', UserIndex::class)->name('user.index');
