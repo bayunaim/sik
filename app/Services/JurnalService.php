@@ -140,11 +140,21 @@ class JurnalService
         ], $user);
     }
 
-    /** Jurnal pembalik: debit dan kredit ditukar. Satu jurnal hanya bisa dibalik sekali (FR-072). */
-    public function balik(Jurnal $asal, string $alasan, User $user): Jurnal
+    /**
+     * Jurnal pembalik: debit dan kredit ditukar. Satu jurnal hanya bisa dibalik sekali (FR-072).
+     *
+     * Jurnal otomatis dari transaksi (pembayaran, penerimaan, pengeluaran) tidak boleh dibalik
+     * langsung, karena status tagihan, penerimaan dana, dan sebagainya akan jadi tidak sinkron.
+     * Alur resmi (misalnya PembayaranService::batalkan) memanggil dengan $dariAlurSumber = true.
+     */
+    public function balik(Jurnal $asal, string $alasan, User $user, bool $dariAlurSumber = false): Jurnal
     {
-        return DB::transaction(function () use ($asal, $alasan, $user) {
+        return DB::transaction(function () use ($asal, $alasan, $user, $dariAlurSumber) {
             $a = Jurnal::with('detail')->lockForUpdate()->findOrFail($asal->id);
+
+            if ($a->sumber_type !== null && ! $dariAlurSumber) {
+                throw new DomainException('Jurnal ini berasal dari transaksi. Koreksi lewat transaksinya (misalnya batalkan pembayaran), bukan lewat jurnal pembalik langsung.');
+            }
 
             if ($a->jenis === Jurnal::PEMBALIK) {
                 throw new DomainException('Jurnal pembalik tidak dapat dibalik lagi.');

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Jurnal;
 use App\Models\Pembayaran;
 use App\Models\PenerimaanDana;
 use App\Models\Tagihan;
@@ -169,6 +170,58 @@ class PembayaranService
             ]);
 
             $this->segarkanStatus($t);
+
+            return $p->refresh();
+        });
+    }
+
+    /**
+     * Batalkan pembayaran yang sudah Terverifikasi. Satu transaksi atomik:
+     * pembayaran jadi Dibatalkan, terbayar di tagihan berkurang, penerimaan dana dihapus (soft delete),
+     * dan jurnal pembayaran dibalik. Urutan lock sama dengan verifikasi: tagihan dulu, lalu pembayaran.
+     */
+    public function batalkan(int $pembayaranId, string $alasan, User $user): Pembayaran
+    {
+        $alasan = trim($alasan);
+        if ($alasan === '') {
+            throw new DomainException('Alasan pembatalan wajib diisi.');
+        }
+
+        $tagihanId = Pembayaran::whereKey($pembayaranId)->value('tagihan_id')
+            ?? throw new DomainException('Pembayaran tidak ditemukan.');
+
+        return DB::transaction(function () use ($pembayaranId, $tagihanId, $alasan, $user) {
+            $t = Tagihan::with('tahun')->lockForUpdate()->find($tagihanId)
+                ?? throw new DomainException('Tagihan sudah dibatalkan.');
+            $p = Pembayaran::lockForUpdate()->findOrFail($pembayaranId);
+
+            if ($p->status !== Pembayaran::TERVERIFIKASI) {
+                throw new DomainException('Hanya pembayaran Terverifikasi yang bisa dibatalkan.');
+            }
+            if ($t->tahun->isDitutup()) {
+                throw new DomainException('Tahun anggaran sudah ditutup.');
+            }
+
+            $jurnal = Jurnal::where('kunci_sumber', 'pembayaran:'.$p->id)->first()
+                ?? throw new DomainException('Jurnal pembayaran ini tidak ditemukan. Pembatalan dihentikan.');
+
+            $p->update([
+                'status' => Pembayaran::DIBATALKAN,
+                'alasan_batal' => $alasan,
+                'dibatalkan_oleh' => $user->id,
+                'dibatalkan_pada' => now(),
+            ]);
+
+            $terbayar = BigDecimal::of($t->terbayar)->minus($p->nominal)->toScale(2);
+            if ($terbayar->isNegative()) {
+                throw new DomainException('Terbayar pada tagihan lebih kecil dari pembayaran ini. Data tidak konsisten, pembatalan dihentikan.');
+            }
+            $t->update(['terbayar' => (string) $terbayar]);
+            $this->segarkanStatus($t);
+
+            PenerimaanDana::where('pembayaran_id', $p->id)->get()->each->delete();
+
+            $this->jurnal->balik($jurnal, "Pembatalan pembayaran {$p->nomor_kwitansi}: {$alasan}", $user, true);
 
             return $p->refresh();
         });

@@ -56,6 +56,7 @@
                             $warna = match ($row->status) {
                                 'terverifikasi' => 'success',
                                 'ditolak' => 'danger',
+                                'dibatalkan' => 'secondary',
                                 default => 'warning',
                             };
                         @endphp

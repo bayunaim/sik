@@ -17,16 +17,19 @@ class Pembayaran extends Model
         'nomor_kwitansi', 'tagihan_id', 'mahasiswa_id', 'tanggal_bayar', 'nominal', 'metode',
         'referensi', 'bukti_path', 'status', 'alasan_tolak',
         'diinput_oleh', 'diverifikasi_oleh', 'diverifikasi_pada',
+        'alasan_batal', 'dibatalkan_oleh', 'dibatalkan_pada',
     ];
 
     public const PENDING = 'pending';
     public const TERVERIFIKASI = 'terverifikasi';
     public const DITOLAK = 'ditolak';
+    public const DIBATALKAN = 'dibatalkan';
 
     public const STATUS = [
         self::PENDING => 'Pending',
         self::TERVERIFIKASI => 'Terverifikasi',
         self::DITOLAK => 'Ditolak',
+        self::DIBATALKAN => 'Dibatalkan',
     ];
 
     public const METODE = ['Transfer Bank', 'Tunai'];
@@ -37,6 +40,7 @@ class Pembayaran extends Model
             'nominal' => 'decimal:2',
             'tanggal_bayar' => 'date',
             'diverifikasi_pada' => 'datetime',
+            'dibatalkan_pada' => 'datetime',
         ];
     }
 
@@ -64,7 +68,7 @@ class Pembayaran extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['nomor_kwitansi', 'tagihan_id', 'tanggal_bayar', 'nominal', 'metode',
-                'status', 'alasan_tolak', 'diverifikasi_oleh'])
+                'status', 'alasan_tolak', 'alasan_batal', 'diverifikasi_oleh', 'dibatalkan_oleh'])
             ->logOnlyDirty()
             ->useLogName('pembayaran');
     }
