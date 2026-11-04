@@ -185,12 +185,16 @@ class TagihanService
 
                 foreach (array_chunk($baris, 500) as $potongan) {
                     DB::table('tagihan')->insert($potongan);
-                }
 
-                // Nomor otomatis. Di dalam transaksi ini, hanya baris kita yang belum bernomor.
-                DB::table('tagihan')->whereNull('nomor')->update([
-                    'nomor' => DB::raw("CONCAT('TGH/', YEAR(tanggal_tagihan), '/', LPAD(id, 6, '0'))"),
-                ]);
+                    // Nomor otomatis, dibatasi ke baris batch ini lewat kunci_unik
+                    // (unik per mahasiswa+komponen+periode), bukan semua baris tanpa nomor.
+                    DB::table('tagihan')
+                        ->whereNull('nomor')
+                        ->whereIn('kunci_unik', array_column($potongan, 'kunci_unik'))
+                        ->update([
+                            'nomor' => DB::raw("CONCAT('TGH/', YEAR(tanggal_tagihan), '/', LPAD(id, 6, '0'))"),
+                        ]);
+                }
 
                 activity('tagihan')
                     ->causedBy($user)
