@@ -88,7 +88,7 @@
                             <td>
                                 <span
                                     class="badge bg-{{ $warna }} {{ $warna === 'warning' ? 'text-dark' : '' }}"
-                                    @if ($row->alasan_tolak) title="{{ $row->alasan_tolak }}" @endif>
+                                    @if ($row->alasan_tolak) title="{{ $row->alasan_tolak }}" @elseif ($row->alasan_batal) title="{{ $row->alasan_batal }}" @endif>
                                     {{ \App\Models\Pembayaran::STATUS[$row->status] ?? $row->status }}
                                 </span>
                                 @if ($row->nomor_kwitansi)
@@ -101,6 +101,10 @@
                                         class="btn btn-sm btn-outline-primary">Kwitansi</a>
                                 @endif
                                 @can('pembayaran.verifikasi')
+                                    @if ($row->status === 'terverifikasi')
+                                        <button class="btn btn-sm btn-outline-danger"
+                                            wire:click="konfirmasiBatal({{ $row->id }})">Batalkan</button>
+                                    @endif
                                     @if ($row->status === 'pending')
                                         <button class="btn btn-sm btn-success" wire:click="verifikasi({{ $row->id }})"
                                             wire:loading.attr="disabled"
@@ -238,6 +242,38 @@
                         <button type="button" class="btn btn-secondary" wire:click="tutupForm">Batal</button>
                         <button type="submit" class="btn btn-primary" wire:loading.attr="disabled"
                             wire:target="simpan,bukti">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal batalkan pembayaran terverifikasi --}}
+    @if ($batalId)
+        <div class="modal-backdrop fade show"></div>
+        <div class="modal fade show d-block" tabindex="-1" wire:keydown.escape="tutupBatal">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" wire:submit="simpanBatal">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Batalkan Pembayaran</h5>
+                        <button type="button" class="btn-close" wire:click="tutupBatal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning py-2 small">
+                            Pembayaran ini sudah terverifikasi. Membatalkannya akan mengurangi jumlah terbayar pada
+                            tagihan, menghapus penerimaan dana, dan membuat jurnal pembalik. Tindakan ini tidak bisa
+                            diurungkan.
+                        </div>
+                        <label class="form-label">Alasan pembatalan <span class="text-danger">*</span></label>
+                        <textarea wire:model="alasanBatal" rows="3" class="form-control @error('alasanBatal') is-invalid @enderror"></textarea>
+                        @error('alasanBatal')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="tutupBatal">Kembali</button>
+                        <button type="submit" class="btn btn-danger" wire:loading.attr="disabled"
+                            wire:target="simpanBatal">Batalkan Pembayaran</button>
                     </div>
                 </form>
             </div>

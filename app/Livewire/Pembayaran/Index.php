@@ -41,6 +41,10 @@ class Index extends Component
     public ?int $tolakId = null;
     public string $alasanTolak = '';
 
+    // batalkan pembayaran yang sudah terverifikasi
+    public ?int $batalId = null;
+    public string $alasanBatal = '';
+
     public function mount(): void
     {
         abort_unless(auth()->user()->can('pembayaran.lihat'), 403);
@@ -178,6 +182,41 @@ class Index extends Component
     public function tutupTolak(): void
     {
         $this->reset(['tolakId', 'alasanTolak']);
+        $this->resetValidation();
+    }
+
+    public function konfirmasiBatal(int $id): void
+    {
+        abort_unless(auth()->user()->can('pembayaran.verifikasi'), 403);
+
+        $this->batalId = $id;
+        $this->alasanBatal = '';
+        $this->resetValidation();
+    }
+
+    public function simpanBatal(PembayaranService $service): void
+    {
+        abort_unless(auth()->user()->can('pembayaran.verifikasi'), 403);
+
+        $this->validate(
+            ['alasanBatal' => ['required', 'string', 'min:5', 'max:500']],
+            ['alasanBatal.required' => 'Alasan pembatalan wajib diisi.', 'alasanBatal.min' => 'Alasan minimal 5 karakter.']
+        );
+
+        try {
+            $p = $service->batalkan($this->batalId, trim($this->alasanBatal), auth()->user());
+        } catch (DomainException $e) {
+            $this->addError('alasanBatal', $e->getMessage());
+            return;
+        }
+
+        session()->flash('sukses', "Pembayaran {$p->nomor_kwitansi} dibatalkan. Tagihan, penerimaan dana, dan jurnal sudah dikoreksi.");
+        $this->tutupBatal();
+    }
+
+    public function tutupBatal(): void
+    {
+        $this->reset(['batalId', 'alasanBatal']);
         $this->resetValidation();
     }
 
