@@ -16,6 +16,7 @@ class PenerimaanDana extends Model
     protected $fillable = [
         'pembayaran_id', 'sumber', 'anggaran_id', 'tahun_anggaran_id',
         'tanggal', 'nominal', 'metode', 'keterangan', 'dibuat_oleh',
+        'alasan_batal', 'dibatalkan_oleh',
     ];
 
     protected function casts(): array

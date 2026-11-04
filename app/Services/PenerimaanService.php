@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Anggaran;
+use App\Models\Jurnal;
 use App\Models\PenerimaanDana;
+use App\Models\TahunAnggaran;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use DomainException;
@@ -56,6 +58,44 @@ class PenerimaanService
             $this->jurnal->untukPenerimaan($p, $d['metode'], $user);
 
             return $p;
+        });
+    }
+
+    /**
+     * Batalkan penerimaan non-mahasiswa (misalnya salah input). Atomik: penerimaan dihapus (soft delete,
+     * alasan tersimpan) dan jurnalnya dibalik. Penerimaan dari pembayaran mahasiswa dibatalkan lewat
+     * PembayaranService::batalkan(), bukan di sini.
+     */
+    public function batalkan(int $id, string $alasan, User $user): void
+    {
+        $alasan = trim($alasan);
+        if ($alasan === '') {
+            throw new DomainException('Alasan pembatalan wajib diisi.');
+        }
+
+        DB::transaction(function () use ($id, $alasan, $user) {
+            $p = PenerimaanDana::lockForUpdate()->find($id)
+                ?? throw new DomainException('Penerimaan tidak ditemukan atau sudah dibatalkan.');
+
+            if (! $user->can('penerimaan.input')) {
+                throw new DomainException('Anda tidak punya hak untuk membatalkan penerimaan.');
+            }
+            if ($p->pembayaran_id !== null) {
+                throw new DomainException('Penerimaan ini berasal dari pembayaran mahasiswa. Batalkan lewat modul pembayaran.');
+            }
+
+            $tahun = TahunAnggaran::find($p->tahun_anggaran_id);
+            if (! $tahun || $tahun->isDitutup()) {
+                throw new DomainException('Tahun anggaran sudah ditutup.');
+            }
+
+            $jurnal = Jurnal::where('kunci_sumber', 'penerimaan:'.$p->id)->first()
+                ?? throw new DomainException('Jurnal penerimaan ini tidak ditemukan. Pembatalan dihentikan.');
+
+            $p->update(['alasan_batal' => $alasan, 'dibatalkan_oleh' => $user->id]);
+            $p->delete();
+
+            $this->jurnal->balik($jurnal, "Pembatalan penerimaan: {$alasan}", $user, true);
         });
     }
 }

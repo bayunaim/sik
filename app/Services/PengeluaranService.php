@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Anggaran;
 use App\Models\ChartOfAccount;
+use App\Models\Jurnal;
 use App\Models\Pengeluaran;
 use App\Models\User;
 use Brick\Math\BigDecimal;
@@ -189,6 +190,48 @@ class PengeluaranService
                 'diproses_oleh' => $user->id,
                 'diproses_pada' => now(),
             ]);
+
+            return $p->refresh();
+        });
+    }
+
+    /**
+     * Batalkan pengeluaran yang sudah Disetujui (misalnya salah input). Atomik: status jadi Dibatalkan
+     * (sisa anggaran otomatis pulih karena terpakai() hanya menghitung Disetujui) dan jurnalnya dibalik.
+     * Butuh hak approval. Beda dengan batalkan(), yang hanya untuk pengaju selama masih Pending.
+     */
+    public function batalkanDisetujui(int $id, string $alasan, User $user): Pengeluaran
+    {
+        $alasan = trim($alasan);
+        if ($alasan === '') {
+            throw new DomainException('Alasan pembatalan wajib diisi.');
+        }
+
+        return DB::transaction(function () use ($id, $alasan, $user) {
+            $p = Pengeluaran::with('tahun')->lockForUpdate()->find($id)
+                ?? throw new DomainException('Pengeluaran tidak ditemukan atau sudah dihapus.');
+
+            if (! $user->can('pengeluaran.approve')) {
+                throw new DomainException('Anda tidak punya hak approval.');
+            }
+            if ($p->status !== Pengeluaran::DISETUJUI) {
+                throw new DomainException('Hanya pengeluaran Disetujui yang bisa dibatalkan dengan cara ini.');
+            }
+            if ($p->tahun->isDitutup()) {
+                throw new DomainException('Tahun anggaran sudah ditutup.');
+            }
+
+            $jurnal = Jurnal::where('kunci_sumber', 'pengeluaran:'.$p->id)->first()
+                ?? throw new DomainException('Jurnal pengeluaran ini tidak ditemukan. Pembatalan dihentikan.');
+
+            $p->update([
+                'status' => Pengeluaran::DIBATALKAN,
+                'alasan_batal' => $alasan,
+                'dibatalkan_oleh' => $user->id,
+                'dibatalkan_pada' => now(),
+            ]);
+
+            $this->jurnal->balik($jurnal, "Pembatalan pengeluaran {$p->nomor}: {$alasan}", $user, true);
 
             return $p->refresh();
         });
