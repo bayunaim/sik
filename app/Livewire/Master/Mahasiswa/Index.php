@@ -9,6 +9,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Illuminate\Support\Facades\DB;
 
 #[Layout('components.layouts.app')]
 class Index extends Component
@@ -173,5 +174,28 @@ class Index extends Component
             'daftarAngkatan' => Mahasiswa::query()->distinct()->orderByDesc('angkatan')->pluck('angkatan'),
             'daftarStatus' => array_merge(Mahasiswa::STATUS, [Mahasiswa::STATUS_TIDAK_ADA_DI_IMPORT]),
         ]);
+    }
+
+    public function resetPassword(int $id): void
+    {
+        abort_unless(auth()->user()->can('mahasiswa.reset-password'), 403);
+
+        $m = Mahasiswa::findOrFail($id);
+        $user = $m->user;
+
+        if (! $user || ! $user->hasRole('Mahasiswa')) {
+            session()->flash('gagal', 'Mahasiswa ini belum punya akun. Buat lewat menu Import GoFeeder.');
+            return;
+        }
+
+        DB::transaction(function () use ($user, $m) {
+            $user->forceFill(['password' => $m->nim, 'must_change_password' => true])->save();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+
+            activity('users')->performedOn($user)->causedBy(auth()->user())
+                ->withProperties(['nim' => $m->nim])->log('password mahasiswa direset ke NIM');
+        });
+
+        session()->flash('sukses', "Password {$m->nama} dikembalikan ke NIM dan wajib diganti saat login.");
     }
 }

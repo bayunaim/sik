@@ -79,6 +79,15 @@
                                 @endphp
                                 <span class="badge bg-{{ $warna }}">{{ $row->status_akademik }}</span>
                             </td>
+                            @can('mahasiswa.reset-password')
+                                @if ($row->user_id)
+                                    <button class="btn btn-sm btn-outline-warning"
+                                        wire:click="resetPassword({{ $row->id }})"
+                                        wire:confirm="Reset password {{ $row->nama }} ke NIM? Pastikan identitas mahasiswa sudah diverifikasi.">
+                                        Reset Password
+                                    </button>
+                                @endif
+                            @endcan
                             @can('master.kelola')
                                 <td class="text-end text-nowrap">
                                     <button class="btn btn-sm btn-outline-primary"

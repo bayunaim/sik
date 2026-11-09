@@ -12,82 +12,182 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        // Bersihkan cache permission
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        // Daftar seluruh permission
         $permissions = [
             // pengguna
             'user.kelola',
+
             // master data
-            'master.lihat', 'master.kelola',
+            'master.lihat',
+            'master.kelola',
+
             // anggaran
-            'anggaran.lihat', 'anggaran.buat', 'anggaran.approve',
+            'anggaran.lihat',
+            'anggaran.buat',
+            'anggaran.approve',
+
             // tagihan
-            'tagihan.lihat', 'tagihan.buat', 'tagihan.ubah-nominal', 'tagihan.batalkan',
+            'tagihan.lihat',
+            'tagihan.buat',
+            'tagihan.ubah-nominal',
+            'tagihan.batalkan',
+
             // pembayaran
-            'pembayaran.lihat', 'pembayaran.input', 'pembayaran.verifikasi',
+            'pembayaran.lihat',
+            'pembayaran.input',
+            'pembayaran.verifikasi',
+
             // penerimaan & pengeluaran
-            'penerimaan.lihat', 'penerimaan.input',
-            'pengeluaran.lihat', 'pengeluaran.ajukan', 'pengeluaran.approve',
+            'penerimaan.lihat',
+            'penerimaan.input',
+            'pengeluaran.lihat',
+            'pengeluaran.ajukan',
+            'pengeluaran.approve',
+
             // jurnal & laporan
-            'jurnal.lihat', 'jurnal.penyesuaian',
-            'laporan.lihat', 'laporan.ekspor',
+            'jurnal.lihat',
+            'jurnal.penyesuaian',
+            'laporan.lihat',
+            'laporan.ekspor',
+
             // rekonsiliasi, integrasi, tutup tahun
             'rekonsiliasi.kelola',
-            'import.sia', 'tahun.tutup',
+            'import.sia',
+            'tahun.tutup',
+
             // portal mahasiswa
-            'portal.lihat', 'portal.upload-bukti',
+            'portal.lihat',
+            'portal.upload-bukti',
+            'mahasiswa.reset-password',
         ];
 
-        foreach ($permissions as $p) {
-            Permission::findOrCreate($p, 'web');
+        // Buat permission jika belum tersedia
+        foreach ($permissions as $permission) {
+            Permission::findOrCreate($permission, 'web');
         }
 
-        // tambahkan ini
+        // Bersihkan cache setelah pembuatan permission
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // SuperAdmin: semua permission lewat Gate::before (di AppServiceProvider)
+        // ==========================================
+        // ROLE SUPER ADMIN
+        // ==========================================
+
+        // SuperAdmin mendapatkan semua akses melalui Gate::before
         Role::findOrCreate('SuperAdmin', 'web');
 
+        // ==========================================
+        // ROLE ADMIN KEUANGAN
+        // ==========================================
+
         Role::findOrCreate('Admin Keuangan', 'web')->syncPermissions([
-            'master.lihat', 'master.kelola',
-            'anggaran.lihat', 'anggaran.buat', 'anggaran.approve',
-            'tagihan.lihat', 'tagihan.buat', 'tagihan.ubah-nominal', 'tagihan.batalkan',
-            'pembayaran.lihat', 'pembayaran.input', 'pembayaran.verifikasi',
-            'penerimaan.lihat', 'penerimaan.input',
-            'pengeluaran.lihat', 'pengeluaran.ajukan', 'pengeluaran.approve',
-            'jurnal.lihat', 'jurnal.penyesuaian',
-            'laporan.lihat', 'laporan.ekspor',
-            'rekonsiliasi.kelola', 'import.sia',
+            'master.lihat',
+            'master.kelola',
+
+            'anggaran.lihat',
+            'anggaran.buat',
+            'anggaran.approve',
+
+            'tagihan.lihat',
+            'tagihan.buat',
+            'tagihan.ubah-nominal',
+            'tagihan.batalkan',
+
+            'pembayaran.lihat',
+            'pembayaran.input',
+            'pembayaran.verifikasi',
+
+            'penerimaan.lihat',
+            'penerimaan.input',
+
+            'pengeluaran.lihat',
+            'pengeluaran.ajukan',
+            'pengeluaran.approve',
+
+            'jurnal.lihat',
+            'jurnal.penyesuaian',
+
+            'laporan.lihat',
+            'laporan.ekspor',
+
+            'rekonsiliasi.kelola',
+            'import.sia',
+
+            // Reset password mahasiswa
+            'mahasiswa.reset-password',
         ]);
+
+        // ==========================================
+        // ROLE OPERATOR
+        // ==========================================
 
         Role::findOrCreate('Operator', 'web')->syncPermissions([
             'master.lihat',
-            'anggaran.lihat', 'anggaran.buat',          // hanya Draft (dicek di Policy)
-            'tagihan.lihat', 'tagihan.buat',
-            'pembayaran.lihat', 'pembayaran.input',
+
+            'anggaran.lihat',
+            'anggaran.buat', // Hanya Draft (dicek di Policy)
+
+            'tagihan.lihat',
+            'tagihan.buat',
+
+            'pembayaran.lihat',
+            'pembayaran.input',
+
             'penerimaan.lihat',
-            'pengeluaran.lihat', 'pengeluaran.ajukan',
+
+            'pengeluaran.lihat',
+            'pengeluaran.ajukan',
         ]);
+
+        // ==========================================
+        // ROLE PIMPINAN
+        // ==========================================
 
         Role::findOrCreate('Pimpinan', 'web')->syncPermissions([
-            'anggaran.lihat', 'tagihan.lihat', 'pembayaran.lihat',
-            'penerimaan.lihat', 'pengeluaran.lihat', 'pengeluaran.approve',
-            'jurnal.lihat', 'laporan.lihat', 'laporan.ekspor',
+            'anggaran.lihat',
+            'tagihan.lihat',
+            'pembayaran.lihat',
+
+            'penerimaan.lihat',
+
+            'pengeluaran.lihat',
+            'pengeluaran.approve',
+
+            'jurnal.lihat',
+
+            'laporan.lihat',
+            'laporan.ekspor',
         ]);
+
+        // ==========================================
+        // ROLE MAHASISWA
+        // ==========================================
 
         Role::findOrCreate('Mahasiswa', 'web')->syncPermissions([
-            'portal.lihat', 'portal.upload-bukti',
+            'portal.lihat',
+            'portal.upload-bukti',
         ]);
 
-        // Akun SuperAdmin awal (ganti password setelah login pertama)
+        // ==========================================
+        // AKUN SUPER ADMIN AWAL
+        // ==========================================
+
+        // Ganti password setelah login pertama
         $admin = User::firstOrCreate(
             ['email' => 'admin@kampus.test'],
             [
                 'name' => 'Super Admin',
-                'password' => 'ganti-password-ini',   // otomatis di-hash oleh cast
+                'password' => 'ganti-password-ini',
                 'is_active' => true,
             ]
         );
+
         $admin->assignRole('SuperAdmin');
+
+        // Bersihkan cache terakhir
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

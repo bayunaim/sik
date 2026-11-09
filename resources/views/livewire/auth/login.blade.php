@@ -3,6 +3,10 @@
         <h4 class="mb-1">{{ config('app.name') }}</h4>
         <p class="text-muted small mb-4">Sistem Informasi Keuangan Kampus</p>
 
+        @if (session('sukses'))
+            <div class="alert alert-success py-2">{{ session('sukses') }}</div>
+        @endif
+
         <form wire:submit="login">
             <div class="mb-3">
                 <label class="form-label">Email atau NIM</label>
@@ -31,6 +35,7 @@
                 <span wire:loading.remove>Masuk</span>
                 <span wire:loading>Memproses...</span>
             </button>
+            <div class="text-center mt-3 small"><a href="{{ route('password.request') }}">Lupa password?</a></div>
         </form>
     </div>
 </div>

@@ -29,10 +29,14 @@ use App\Livewire\User\Index as UserIndex;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Livewire\Auth\AturUlangPassword;
+use App\Livewire\Auth\LupaPassword;
 
 // Tamu
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
+    Route::get('/lupa-password', LupaPassword::class)->name('password.request');
+    Route::get('/reset-password/{token}', AturUlangPassword::class)->name('password.reset');
 });
 
 // Wajib login, akun aktif, dan sudah mengganti password awal
