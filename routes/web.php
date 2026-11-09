@@ -26,6 +26,8 @@ use App\Livewire\Pengeluaran\Index as PengeluaranIndex;
 use App\Models\Pengeluaran;
 use App\Http\Controllers\LaporanController;
 use App\Livewire\Laporan\Tampil as LaporanTampil;
+use App\Http\Controllers\ImportController;
+use App\Livewire\Import\Index as ImportIndex;
 
 // Tamu
 Route::middleware('guest')->group(function () {
@@ -95,6 +97,9 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
     ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian'])
     ->whereIn('format', ['pdf', 'xlsx'])
     ->name('laporan.ekspor');
+
+    Route::get('/import', ImportIndex::class)->name('import.index');
+    Route::get('/import/{log}/error', [ImportController::class, 'error'])->name('import.error');
 
     // Sistem
     Route::get('/pengguna', UserIndex::class)->name('user.index');
