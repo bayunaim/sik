@@ -49,7 +49,8 @@
                 <option value="">Semua kategori (kode anggaran)</option>
                 @foreach ($daftarFilterAnggaran as $a)
                     <option value="{{ $a->id }}">{{ $a->kode }} - {{ $a->nama }}
-                        ({{ $a->tahun->nama }})</option>
+                        ({{ $a->tahun->nama }})
+                    </option>
                 @endforeach
             </select>
             <select class="form-select" style="max-width: 140px;" wire:model.live="filterBulan">
@@ -88,6 +89,7 @@
                             $warna = match ($row->status) {
                                 'disetujui' => 'success',
                                 'ditolak' => 'danger',
+                                'dibatalkan' => 'secondary',
                                 default => 'warning',
                             };
                         @endphp
@@ -111,7 +113,7 @@
                             <td>
                                 <span
                                     class="badge bg-{{ $warna }} {{ $warna === 'warning' ? 'text-dark' : '' }}"
-                                    @if ($row->alasan_tolak) title="{{ $row->alasan_tolak }}" @endif>
+                                    @if ($row->alasan_tolak) title="{{ $row->alasan_tolak }}" @elseif ($row->alasan_batal) title="{{ $row->alasan_batal }}" @endif>
                                     {{ \App\Models\Pengeluaran::STATUS[$row->status] ?? $row->status }}
                                 </span>
                                 @if ($row->pemroses)
@@ -122,6 +124,10 @@
                                 @endif
                             </td>
                             <td class="text-end text-nowrap">
+                                @if ($row->status === 'disetujui' && auth()->user()->can('pengeluaran.approve'))
+                                    <button class="btn btn-sm btn-outline-danger"
+                                        wire:click="konfirmasiBatalSetuju({{ $row->id }})">Batalkan</button>
+                                @endif
                                 @if ($row->status === 'pending')
                                     @if ($row->alasan_blokir === null)
                                         <button class="btn btn-sm btn-success"
@@ -186,7 +192,8 @@
                                 <option value="">- Pilih kode anggaran -</option>
                                 @foreach ($daftarAnggaran as $a)
                                     <option value="{{ $a->id }}">{{ $a->kode }} - {{ $a->nama }}
-                                        ({{ $a->tahun->nama }})</option>
+                                        ({{ $a->tahun->nama }})
+                                    </option>
                                 @endforeach
                             </select>
                             @error('anggaran_id')
@@ -274,6 +281,39 @@
                         <button type="button" class="btn btn-secondary" wire:click="tutupForm">Batal</button>
                         <button type="submit" class="btn btn-primary" wire:loading.attr="disabled"
                             wire:target="simpan,lampiran">Kirim Pengajuan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal batalkan pengeluaran yang sudah disetujui --}}
+    @if ($batalSetujuId)
+        <div class="modal-backdrop fade show"></div>
+        <div class="modal fade show d-block" tabindex="-1" wire:keydown.escape="tutupBatalSetuju">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" wire:submit="simpanBatalSetuju">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Batalkan Pengeluaran</h5>
+                        <button type="button" class="btn-close" wire:click="tutupBatalSetuju"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning py-2 small">
+                            Pengeluaran ini sudah disetujui dan dijurnal. Membatalkannya akan membuat jurnal
+                            pembalik dan mengembalikan sisa anggaran. Tindakan ini tidak bisa diurungkan.
+                        </div>
+                        <label class="form-label">Alasan pembatalan <span class="text-danger">*</span></label>
+                        <textarea wire:model="alasanBatalSetuju" rows="3"
+                            class="form-control @error('alasanBatalSetuju') is-invalid @enderror"></textarea>
+                        @error('alasanBatalSetuju')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            wire:click="tutupBatalSetuju">Kembali</button>
+                        <button type="submit" class="btn btn-danger" wire:loading.attr="disabled"
+                            wire:target="simpanBatalSetuju">Batalkan Pengeluaran</button>
                     </div>
                 </form>
             </div>

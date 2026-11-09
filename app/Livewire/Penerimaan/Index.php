@@ -36,6 +36,10 @@ class Index extends Component
     public string $metode = 'Transfer Bank';
     public string $keterangan = '';
 
+    // batalkan penerimaan non-mahasiswa
+    public ?int $batalId = null;
+    public string $alasanBatal = '';
+
     public function mount(): void
     {
         abort_unless(auth()->user()->can('penerimaan.lihat'), 403);
@@ -99,6 +103,41 @@ class Index extends Component
 
         session()->flash('sukses', 'Penerimaan dana dicatat dan jurnal otomatis dibuat.');
         $this->tampilForm = false;
+    }
+
+    public function konfirmasiBatal(int $id): void
+    {
+        abort_unless(auth()->user()->can('penerimaan.input'), 403);
+
+        $this->batalId = $id;
+        $this->alasanBatal = '';
+        $this->resetValidation();
+    }
+
+    public function simpanBatal(PenerimaanService $service): void
+    {
+        abort_unless(auth()->user()->can('penerimaan.input'), 403);
+
+        $this->validate(
+            ['alasanBatal' => ['required', 'string', 'min:5', 'max:500']],
+            ['alasanBatal.required' => 'Alasan pembatalan wajib diisi.', 'alasanBatal.min' => 'Alasan minimal 5 karakter.']
+        );
+
+        try {
+            $service->batalkan($this->batalId, trim($this->alasanBatal), auth()->user());
+        } catch (DomainException $e) {
+            $this->addError('alasanBatal', $e->getMessage());
+            return;
+        }
+
+        session()->flash('sukses', 'Penerimaan dibatalkan. Jurnalnya sudah dibalik.');
+        $this->tutupBatal();
+    }
+
+    public function tutupBatal(): void
+    {
+        $this->reset(['batalId', 'alasanBatal']);
+        $this->resetValidation();
     }
 
     public function tutupForm(): void

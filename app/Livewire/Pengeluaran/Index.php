@@ -49,6 +49,10 @@ class Index extends Component
     public ?int $tolakId = null;
     public string $alasanTolak = '';
 
+    // batalkan pengeluaran yang sudah disetujui
+    public ?int $batalSetujuId = null;
+    public string $alasanBatalSetuju = '';
+
     public function mount(): void
     {
         abort_unless(auth()->user()->can('pengeluaran.lihat'), 403);
@@ -170,6 +174,41 @@ class Index extends Component
     public function tutupTolak(): void
     {
         $this->reset(['tolakId', 'alasanTolak']);
+        $this->resetValidation();
+    }
+
+    public function konfirmasiBatalSetuju(int $id): void
+    {
+        abort_unless(auth()->user()->can('pengeluaran.approve'), 403);
+
+        $this->batalSetujuId = $id;
+        $this->alasanBatalSetuju = '';
+        $this->resetValidation();
+    }
+
+    public function simpanBatalSetuju(PengeluaranService $service): void
+    {
+        abort_unless(auth()->user()->can('pengeluaran.approve'), 403);
+
+        $this->validate(
+            ['alasanBatalSetuju' => ['required', 'string', 'min:5', 'max:500']],
+            ['alasanBatalSetuju.required' => 'Alasan pembatalan wajib diisi.', 'alasanBatalSetuju.min' => 'Alasan minimal 5 karakter.']
+        );
+
+        try {
+            $p = $service->batalkanDisetujui($this->batalSetujuId, trim($this->alasanBatalSetuju), auth()->user());
+        } catch (DomainException $e) {
+            $this->addError('alasanBatalSetuju', $e->getMessage());
+            return;
+        }
+
+        session()->flash('sukses', "Pengeluaran {$p->nomor} dibatalkan. Jurnalnya sudah dibalik dan sisa anggaran pulih.");
+        $this->tutupBatalSetuju();
+    }
+
+    public function tutupBatalSetuju(): void
+    {
+        $this->reset(['batalSetujuId', 'alasanBatalSetuju']);
         $this->resetValidation();
     }
 

@@ -9,7 +9,7 @@
 <div class="sidebar sidebar-dark sidebar-fixed border-end" id="sidebar">
     <div class="sidebar-header border-bottom">
         <div class="sidebar-brand">
-            <span class="sidebar-brand-full fw-bold fs-5"><i class="cil-institution me-2"></i>SIK Kampus</span>
+            <span class="sidebar-brand-full fw-bold fs-5"><i class="cil-institution me-2"></i>SIK STOK BINAGUNA</span>
             <span class="sidebar-brand-narrow fw-bold">SIK</span>
         </div>
     </div>

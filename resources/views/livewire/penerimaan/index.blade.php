@@ -39,6 +39,7 @@
                         <th>Kode Anggaran</th>
                         <th>Keterangan</th>
                         <th class="text-end">Nominal</th>
+                        <th class="text-end">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,14 +55,23 @@
                                 {{ $row->keterangan }}
                                 @if ($row->pembayaran?->mahasiswa)
                                     <div class="small text-body-secondary">{{ $row->pembayaran->mahasiswa->nama }}
-                                        ({{ $row->pembayaran->mahasiswa->nim }})</div>
+                                        ({{ $row->pembayaran->mahasiswa->nim }})
+                                    </div>
                                 @endif
                             </td>
                             <td class="text-end fw-semibold">Rp {{ number_format($row->nominal, 0, ',', '.') }}</td>
+                            <td class="text-end text-nowrap">
+                                @if ($row->pembayaran_id === null)
+                                    @can('penerimaan.input')
+                                        <button class="btn btn-sm btn-outline-danger"
+                                            wire:click="konfirmasiBatal({{ $row->id }})">Batalkan</button>
+                                    @endcan
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-body-secondary py-4">Belum ada penerimaan.</td>
+                            <td colspan="6" class="text-center text-body-secondary py-4">Belum ada penerimaan.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -108,7 +118,8 @@
                                 <option value="">- Pilih kode anggaran -</option>
                                 @foreach ($daftarAnggaran as $a)
                                     <option value="{{ $a->id }}">{{ $a->kode }} - {{ $a->nama }}
-                                        ({{ $a->tahun->nama }})</option>
+                                        ({{ $a->tahun->nama }})
+                                    </option>
                                 @endforeach
                             </select>
                             @error('anggaran_id')
@@ -145,7 +156,8 @@
 
                         <div class="mb-3">
                             <label class="form-label">Keterangan <span class="text-danger">*</span></label>
-                            <input type="text" wire:model="keterangan" placeholder="Contoh: Hibah dari PT Maju Jaya"
+                            <input type="text" wire:model="keterangan"
+                                placeholder="Contoh: Hibah dari PT Maju Jaya"
                                 class="form-control @error('keterangan') is-invalid @enderror">
                             @error('keterangan')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -157,6 +169,37 @@
                         <button type="button" class="btn btn-secondary" wire:click="tutupForm">Batal</button>
                         <button type="submit" class="btn btn-primary" wire:loading.attr="disabled"
                             wire:target="simpan">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal batalkan penerimaan --}}
+    @if ($batalId)
+        <div class="modal-backdrop fade show"></div>
+        <div class="modal fade show d-block" tabindex="-1" wire:keydown.escape="tutupBatal">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" wire:submit="simpanBatal">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Batalkan Penerimaan</h5>
+                        <button type="button" class="btn-close" wire:click="tutupBatal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning py-2 small">
+                            Penerimaan ini sudah dijurnal. Membatalkannya akan menghapusnya dari daftar dan membuat
+                            jurnal pembalik. Tindakan ini tidak bisa diurungkan.
+                        </div>
+                        <label class="form-label">Alasan pembatalan <span class="text-danger">*</span></label>
+                        <textarea wire:model="alasanBatal" rows="3" class="form-control @error('alasanBatal') is-invalid @enderror"></textarea>
+                        @error('alasanBatal')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="tutupBatal">Kembali</button>
+                        <button type="submit" class="btn btn-danger" wire:loading.attr="disabled"
+                            wire:target="simpanBatal">Batalkan Penerimaan</button>
                     </div>
                 </form>
             </div>
