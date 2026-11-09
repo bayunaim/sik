@@ -18,7 +18,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
 
-    protected $fillable = ['name', 'email', 'password', 'batas_persetujuan', 'is_active'];
+    protected $fillable = ['name', 'email', 'username', 'password', 'batas_persetujuan', 'is_active', 'must_change_password'];
 
     protected function casts(): array
     {
@@ -27,6 +27,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'batas_persetujuan' => 'decimal:2',
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 

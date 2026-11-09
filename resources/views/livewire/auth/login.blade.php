@@ -5,10 +5,10 @@
 
         <form wire:submit="login">
             <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" wire:model="email" autofocus
-                    class="form-control @error('email') is-invalid @enderror">
-                @error('email')
+                <label class="form-label">Email atau NIM</label>
+                <input type="text" wire:model="login" autofocus autocomplete="username"
+                    class="form-control @error('login') is-invalid @enderror">
+                @error('login')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>

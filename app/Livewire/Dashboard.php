@@ -72,4 +72,11 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', $d);
     }
+
+    public function mount()
+    {
+        if (auth()->user()->hasRole('Mahasiswa')) {
+            return $this->redirectRoute('portal.index');
+        }
+    }
 }

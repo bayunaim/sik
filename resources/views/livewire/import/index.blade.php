@@ -253,4 +253,5 @@
             </table>
         </div>
     </div>
+    <livewire:import.akun-mahasiswa />
 </div>

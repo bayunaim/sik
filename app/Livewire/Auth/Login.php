@@ -12,23 +12,19 @@ use Livewire\Component;
 #[Layout('components.layouts.guest')]
 class Login extends Component
 {
-    public string $email = '';
+    public string $login = '';
     public string $password = '';
     public bool $remember = false;
 
     protected function rules(): array
     {
-        return [
-            'email' => 'required|email',
-            'password' => 'required',
-        ];
+        return ['login' => 'required|string|max:255', 'password' => 'required'];
     }
 
     protected function messages(): array
     {
         return [
-            'email.required' => 'Email wajib diisi.',
-            'email.email' => 'Format email tidak valid.',
+            'login.required' => 'Email atau NIM wajib diisi.',
             'password.required' => 'Password wajib diisi.',
         ];
     }
@@ -38,8 +34,10 @@ class Login extends Component
         $this->validate();
         $this->ensureNotRateLimited();
 
+        $kolom = str_contains($this->login, '@') ? 'email' : 'username';
+
         $berhasil = Auth::attempt([
-            'email' => $this->email,
+            $kolom => trim($this->login),
             'password' => $this->password,
             'is_active' => true,
         ], $this->remember);
@@ -48,14 +46,16 @@ class Login extends Component
             RateLimiter::hit($this->throttleKey(), 60);
 
             throw ValidationException::withMessages([
-                'email' => 'Email atau password salah, atau akun tidak aktif.',
+                'login' => 'Email/NIM atau password salah, atau akun tidak aktif.',
             ]);
         }
 
         RateLimiter::clear($this->throttleKey());
         session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        $tujuan = Auth::user()->hasRole('Mahasiswa') ? route('portal.index') : route('dashboard');
+
+        return redirect()->intended($tujuan);
     }
 
     protected function ensureNotRateLimited(): void
@@ -67,13 +67,13 @@ class Login extends Component
         $detik = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => "Terlalu banyak percobaan login. Coba lagi dalam {$detik} detik.",
+            'login' => "Terlalu banyak percobaan login. Coba lagi dalam {$detik} detik.",
         ]);
     }
 
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate(Str::lower(trim($this->login)).'|'.request()->ip());
     }
 
     public function render()

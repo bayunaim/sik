@@ -1,10 +1,18 @@
 <?php
 
+use App\Http\Controllers\BerkasController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\PortalController;
 use App\Http\Middleware\EnsureUserAktif;
+use App\Http\Middleware\WajibGantiPassword;
 use App\Livewire\Anggaran\Index as AnggaranIndex;
+use App\Livewire\Auth\GantiPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
+use App\Livewire\Import\Index as ImportIndex;
 use App\Livewire\Jurnal\Index as JurnalIndex;
+use App\Livewire\Laporan\Tampil as LaporanTampil;
 use App\Livewire\Master\ChartOfAccount\Index as CoaIndex;
 use App\Livewire\Master\KomponenBiaya\Index as KomponenIndex;
 use App\Livewire\Master\Mahasiswa\Index as MahasiswaIndex;
@@ -12,32 +20,35 @@ use App\Livewire\Master\ProgramStudi\Index as ProdiIndex;
 use App\Livewire\Master\TahunAnggaran\Index as TahunIndex;
 use App\Livewire\Master\TarifBiaya\Index as TarifIndex;
 use App\Livewire\Pembayaran\Index as PembayaranIndex;
+use App\Livewire\Penerimaan\Index as PenerimaanIndex;
+use App\Livewire\Pengeluaran\Index as PengeluaranIndex;
+use App\Livewire\Portal\Index as PortalIndex;
 use App\Livewire\Tagihan\Index as TagihanIndex;
 use App\Livewire\Tagihan\Massal as TagihanMassal;
 use App\Livewire\User\Index as UserIndex;
-use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Storage;
-use Barryvdh\DomPDF\Facade\Pdf;
-use App\Livewire\Penerimaan\Index as PenerimaanIndex;
-use App\Livewire\Pengeluaran\Index as PengeluaranIndex;
-use App\Models\Pengeluaran;
-use App\Http\Controllers\LaporanController;
-use App\Livewire\Laporan\Tampil as LaporanTampil;
-use App\Http\Controllers\ImportController;
-use App\Livewire\Import\Index as ImportIndex;
 
 // Tamu
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
 });
 
-// Wajib login dan akun aktif
-Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
-    Route::get('/', fn () => redirect()->route('dashboard'));
+// Wajib login, akun aktif, dan sudah mengganti password awal
+Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->group(function () {
+    Route::get('/', fn () => redirect()->route(
+        auth()->user()->hasRole('Mahasiswa') ? 'portal.index' : 'dashboard'
+    ));
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
+    Route::get('/akun/password', GantiPassword::class)->name('password.ganti');
+
+    // Portal mahasiswa
+    Route::prefix('portal')->name('portal.')->group(function () {
+        Route::get('/', PortalIndex::class)->name('index');
+        Route::get('/pembayaran/{pembayaran}/bukti', [PortalController::class, 'bukti'])->name('bukti');
+        Route::get('/pembayaran/{pembayaran}/kwitansi', [PortalController::class, 'kwitansi'])->name('kwitansi');
+    });
 
     // Data master
     Route::prefix('master')->name('master.')->group(function () {
@@ -56,48 +67,28 @@ Route::middleware(['auth', EnsureUserAktif::class])->group(function () {
     Route::get('/tagihan/massal', TagihanMassal::class)->name('tagihan.massal');
 
     Route::get('/pembayaran', PembayaranIndex::class)->name('pembayaran.index');
-
-    // Bukti bayar disimpan privat, hanya bisa dibuka user berhak
-    Route::get('/pembayaran/{pembayaran}/bukti', function (Pembayaran $pembayaran) {
-        abort_unless(auth()->user()->can('pembayaran.lihat'), 403);
-        abort_unless($pembayaran->bukti_path && Storage::disk('local')->exists($pembayaran->bukti_path), 404);
-
-        return response()->file(Storage::disk('local')->path($pembayaran->bukti_path));
-    })->name('pembayaran.bukti');
-
-    Route::get('/pembayaran/{pembayaran}/kwitansi', function (Pembayaran $pembayaran) {
-        abort_unless(auth()->user()->can('pembayaran.lihat'), 403);
-        abort_unless($pembayaran->status === Pembayaran::TERVERIFIKASI, 404);
-
-        $pembayaran->load(['mahasiswa', 'tagihan.komponen', 'pemverifikasi']);
-
-        return Pdf::loadView('pdf.kwitansi', ['p' => $pembayaran])
-            ->setPaper('a5', 'landscape')
-            ->stream('Kwitansi-'.str_replace('/', '-', $pembayaran->nomor_kwitansi).'.pdf');
-    })->name('pembayaran.kwitansi');
+    Route::get('/pembayaran/{pembayaran}/bukti', [BerkasController::class, 'buktiPembayaran'])->name('pembayaran.bukti');
+    Route::get('/pembayaran/{pembayaran}/kwitansi', [BerkasController::class, 'kwitansi'])->name('pembayaran.kwitansi');
 
     Route::get('/penerimaan', PenerimaanIndex::class)->name('penerimaan.index');
 
     Route::get('/pengeluaran', PengeluaranIndex::class)->name('pengeluaran.index');
-
-    Route::get('/pengeluaran/{pengeluaran}/lampiran', function (Pengeluaran $pengeluaran) {
-        abort_unless(auth()->user()->can('pengeluaran.lihat'), 403);
-        abort_unless($pengeluaran->lampiran_path && Storage::disk('local')->exists($pengeluaran->lampiran_path), 404);
-
-        return response()->file(Storage::disk('local')->path($pengeluaran->lampiran_path));
-    })->name('pengeluaran.lampiran');
+    Route::get('/pengeluaran/{pengeluaran}/lampiran', [BerkasController::class, 'lampiranPengeluaran'])->name('pengeluaran.lampiran');
 
     Route::get('/jurnal', JurnalIndex::class)->name('jurnal.index');
 
     // Laporan
-    Route::get('/laporan/jurnal', LaporanTampil::class)->defaults('jenis', 'jurnal')->name('laporan.jurnal');
-    Route::get('/laporan/tunggakan', LaporanTampil::class)->defaults('jenis', 'tunggakan')->name('laporan.tunggakan');
-    Route::get('/laporan/capaian', LaporanTampil::class)->defaults('jenis', 'capaian')->name('laporan.capaian');
-    Route::get('/laporan/{jenis}/ekspor/{format}', [LaporanController::class, 'ekspor'])
-    ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian'])
-    ->whereIn('format', ['pdf', 'xlsx'])
-    ->name('laporan.ekspor');
+    Route::prefix('laporan')->name('laporan.')->group(function () {
+        Route::get('/jurnal', LaporanTampil::class)->defaults('jenis', 'jurnal')->name('jurnal');
+        Route::get('/tunggakan', LaporanTampil::class)->defaults('jenis', 'tunggakan')->name('tunggakan');
+        Route::get('/capaian', LaporanTampil::class)->defaults('jenis', 'capaian')->name('capaian');
+        Route::get('/{jenis}/ekspor/{format}', [LaporanController::class, 'ekspor'])
+            ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian'])
+            ->whereIn('format', ['pdf', 'xlsx'])
+            ->name('ekspor');
+    });
 
+    // Import GoFeeder
     Route::get('/import', ImportIndex::class)->name('import.index');
     Route::get('/import/{log}/error', [ImportController::class, 'error'])->name('import.error');
 

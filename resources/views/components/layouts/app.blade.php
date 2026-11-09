@@ -75,6 +75,9 @@
                         </a>
                         <div class="dropdown-menu dropdown-menu-end pt-0">
                             <div class="dropdown-header bg-body-tertiary fw-semibold my-2">Akun</div>
+                            <a class="dropdown-item" href="{{ route('password.ganti') }}">
+                                <i class="cil-lock-locked me-2"></i> Ganti Password
+                            </a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="dropdown-item">
