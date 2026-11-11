@@ -42,7 +42,9 @@ class LaporanController extends Controller
             'Data terlalu banyak untuk PDF (maks. '.self::BATAS_PDF.' baris). Persempit filter atau ekspor ke Excel.'
         );
 
-        set_time_limit(120);
+        if (! app()->runningInConsole()) {
+            set_time_limit(120);
+        }
 
         return Pdf::loadView('pdf.laporan', ['lap' => $lap, 'oleh' => $user->name])
             ->setPaper('a4', $lap['orientasi'])

@@ -17,7 +17,9 @@ class AkunMahasiswa extends Component
     public function buat(AkunMahasiswaService $svc): void
     {
         abort_unless(auth()->user()->can('import.sia'), 403);
-        set_time_limit(180);
+        if (! app()->runningInConsole()) {
+            set_time_limit(180);
+        }
 
         $this->hasil = $svc->buat(AkunMahasiswaService::BATCH, auth()->user());
     }

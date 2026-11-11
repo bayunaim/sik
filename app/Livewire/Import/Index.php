@@ -59,7 +59,9 @@ class Index extends Component
             ]
         );
 
-        set_time_limit(300);
+        if (! app()->runningInConsole()) {
+            set_time_limit(300);
+        }
 
         $ext = strtolower($this->berkas->getClientOriginalExtension());
         $path = $this->berkas->storeAs('import-gofeeder', Str::uuid().'.'.$ext, 'local');
@@ -90,7 +92,9 @@ class Index extends Component
     public function buatPratinjau(ImportMahasiswaService $svc): void
     {
         abort_unless(auth()->user()->can('import.sia'), 403);
-        set_time_limit(300);
+        if (! app()->runningInConsole()) {
+            set_time_limit(300);
+        }
 
         $log = $this->logAktif();
         $this->bersihkanPemetaan();
@@ -133,7 +137,9 @@ class Index extends Component
             return;
         }
 
-        set_time_limit(300);
+        if (! app()->runningInConsole()) {
+            set_time_limit(300);
+        }
         $log = $this->logAktif();
         $this->bersihkanPemetaan();
 
