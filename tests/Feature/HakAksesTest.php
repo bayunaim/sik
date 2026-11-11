@@ -52,6 +52,7 @@ dataset('halaman', [
     'laporan jurnal' => [LaporanTampil::class, ['jenis' => 'jurnal'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan tunggakan' => [LaporanTampil::class, ['jenis' => 'tunggakan'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan capaian' => [LaporanTampil::class, ['jenis' => 'capaian'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
+    'laporan status keuangan' => [LaporanTampil::class, ['jenis' => 'status-keuangan'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'master prodi' => [ProdiIndex::class, [], ['SuperAdmin', 'Admin Keuangan', 'Operator']],
     'master tahun anggaran' => [TahunIndex::class, [], ['SuperAdmin', 'Admin Keuangan', 'Operator']],
     'master chart of accounts' => [CoaIndex::class, [], ['SuperAdmin', 'Admin Keuangan', 'Operator']],

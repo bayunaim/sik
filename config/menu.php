@@ -21,6 +21,7 @@ return [
             ['label' => 'Jurnal Umum', 'route' => 'laporan.jurnal'],
             ['label' => 'Tunggakan Mahasiswa', 'route' => 'laporan.tunggakan'],
             ['label' => 'Capaian Anggaran', 'route' => 'laporan.capaian'],
+            ['label' => 'Status Keuangan Mahasiswa', 'route' => 'laporan.status-keuangan'],
             ['label' => 'Laba Rugi', 'route' => 'laporan.laba-rugi'],
             ['label' => 'Arus Kas', 'route' => 'laporan.arus-kas'],
         ],

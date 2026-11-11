@@ -129,7 +129,7 @@ class Index extends Component
     public function render(PembayaranService $svc)
     {
         $m = $this->saya();
-        $data = ['mhs' => $m];
+        $data = ['mhs' => $m, 'bisaSuratLunas' => false];
 
         if ($m) {
             $tagihan = Tagihan::with('komponen')->where('mahasiswa_id', $m->id)
@@ -143,6 +143,7 @@ class Index extends Component
                 'tunggakan' => (float) Tagihan::where('mahasiswa_id', $m->id)->where('status', '!=', Tagihan::LUNAS)
                     ->selectRaw('COALESCE(SUM(nominal - terbayar),0) as t')->value('t'),
                 'belumLunas' => $tagihan->where('status', '!=', 'lunas')->count(),
+                'bisaSuratLunas' => app(\App\Services\StatusKeuanganService::class)->alasanTidakBisaSuratLunas($m) === null,
                 'menunggu' => Pembayaran::where('mahasiswa_id', $m->id)->where('status', 'pending')->count(),
             ];
         }

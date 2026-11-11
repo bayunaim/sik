@@ -47,6 +47,14 @@
             </div>
         </div>
 
+        @if ($bisaSuratLunas)
+            <div class="alert alert-success d-flex justify-content-between align-items-center">
+                <span>Seluruh tagihan Anda sudah lunas.</span>
+                <a href="{{ route('portal.surat-lunas') }}" target="_blank" class="btn btn-sm btn-success">Unduh Surat
+                    Keterangan Lunas</a>
+            </div>
+        @endif
+
         <div class="card mb-3">
             <div class="card-header fw-semibold">Tagihan</div>
             <div class="table-responsive">
@@ -85,7 +93,9 @@
                                 <td><span
                                         class="badge bg-{{ $warna }} {{ $warna === 'warning' ? 'text-dark' : '' }}">{{ \App\Models\Tagihan::STATUS[$t->status] ?? $t->status }}</span>
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end text-nowrap">
+                                    <a href="{{ route('portal.tagihan', $t->id) }}" target="_blank"
+                                        class="btn btn-sm btn-outline-secondary">Cetak</a>
                                     @if ($t->bisa_bayar)
                                         @can('portal.upload-bukti')
                                             <button class="btn btn-sm btn-primary"

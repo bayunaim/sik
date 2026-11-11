@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Mahasiswa;
 use App\Models\Pembayaran;
+use App\Models\Tagihan;
+use App\Services\StatusKeuanganService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -39,5 +41,25 @@ class PortalController extends Controller
         return Pdf::loadView('pdf.kwitansi', ['p' => $pembayaran])
             ->setPaper('a5', 'landscape')
             ->stream('Kwitansi-'.str_replace('/', '-', $pembayaran->nomor_kwitansi).'.pdf');
+    }
+
+    private function saya(Request $request): Mahasiswa
+    {
+        abort_unless($request->user()->can('portal.lihat'), 403);
+
+        return Mahasiswa::where('user_id', $request->user()->id)->firstOrFail();
+    }
+
+    public function tagihan(Request $request, Tagihan $tagihan)
+    {
+        $mhs = $this->saya($request);
+        abort_unless($tagihan->mahasiswa_id === $mhs->id, 404);
+
+        return BerkasController::pdfTagihanUntuk($tagihan);
+    }
+
+    public function suratLunas(Request $request, StatusKeuanganService $svc)
+    {
+        return BerkasController::pdfSuratLunasUntuk($request, $this->saya($request), $svc);
     }
 }

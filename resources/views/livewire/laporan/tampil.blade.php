@@ -11,6 +11,8 @@
                     href="{{ route('laporan.ekspor', ['jenis' => $jenis, 'format' => 'pdf'] + $filter) }}">Ekspor PDF</a>
                 <a class="btn btn-outline-success"
                     href="{{ route('laporan.ekspor', ['jenis' => $jenis, 'format' => 'xlsx'] + $filter) }}">Ekspor Excel</a>
+                <a class="btn btn-outline-secondary"
+                    href="{{ route('laporan.ekspor', ['jenis' => $jenis, 'format' => 'csv'] + $filter) }}">Ekspor CSV</a>
             </div>
         @endcan
     </div>
@@ -37,7 +39,7 @@
                 </div>
             @endif
 
-            @if ($jenis === 'tunggakan')
+            @if (in_array($jenis, ['tunggakan', 'status-keuangan']))
                 <div>
                     <label class="form-label small mb-1">Program studi</label>
                     <select class="form-select" wire:model.live="prodi">
@@ -59,7 +61,7 @@
                 <div>
                     <label class="form-label small mb-1">Semester</label>
                     <select class="form-select" wire:model.live="semester">
-                        <option value="">Semua</option>
+                        <option value="">{{ $jenis === 'status-keuangan' ? 'Terbaru' : 'Semua' }}</option>
                         @foreach (\App\Models\Tagihan::SEMESTER as $s)
                             <option value="{{ $s }}">{{ $s }}</option>
                         @endforeach
@@ -68,7 +70,7 @@
                 <div>
                     <label class="form-label small mb-1">Tahun ajaran</label>
                     <select class="form-select" wire:model.live="tahun_ajaran">
-                        <option value="">Semua</option>
+                        <option value="">{{ $jenis === 'status-keuangan' ? 'Terbaru' : 'Semua' }}</option>
                         @foreach ($daftarTahunAjaran as $ta)
                             <option value="{{ $ta }}">{{ $ta }}</option>
                         @endforeach
@@ -76,16 +78,18 @@
                 </div>
             @endif
 
-            <div>
-                <label
-                    class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo dari' : 'Dari tanggal' }}</label>
-                <input type="date" class="form-control" wire:model.live="dari">
-            </div>
-            <div>
-                <label
-                    class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo sampai' : 'Sampai tanggal' }}</label>
-                <input type="date" class="form-control" wire:model.live="sampai">
-            </div>
+            @if ($jenis !== 'status-keuangan')
+                <div>
+                    <label
+                        class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo dari' : 'Dari tanggal' }}</label>
+                    <input type="date" class="form-control" wire:model.live="dari">
+                </div>
+                <div>
+                    <label
+                        class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo sampai' : 'Sampai tanggal' }}</label>
+                    <input type="date" class="form-control" wire:model.live="sampai">
+                </div>
+            @endif
         </div>
     </div>
 

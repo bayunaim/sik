@@ -52,6 +52,8 @@ Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->
         Route::get('/', PortalIndex::class)->name('index');
         Route::get('/pembayaran/{pembayaran}/bukti', [PortalController::class, 'bukti'])->name('bukti');
         Route::get('/pembayaran/{pembayaran}/kwitansi', [PortalController::class, 'kwitansi'])->name('kwitansi');
+        Route::get('/tagihan/{tagihan}/cetak', [PortalController::class, 'tagihan'])->name('tagihan');
+        Route::get('/surat-lunas', [PortalController::class, 'suratLunas'])->name('surat-lunas');
     });
 
     // Data master
@@ -70,6 +72,9 @@ Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->
     Route::get('/tagihan', TagihanIndex::class)->name('tagihan.index');
     Route::get('/tagihan/massal', TagihanMassal::class)->name('tagihan.massal');
 
+    Route::get('/tagihan/{tagihan}/cetak', [BerkasController::class, 'tagihan'])->name('tagihan.cetak');
+    Route::get('/mahasiswa/{mahasiswa}/surat-lunas', [BerkasController::class, 'suratLunas'])->name('mahasiswa.surat-lunas');
+
     Route::get('/pembayaran', PembayaranIndex::class)->name('pembayaran.index');
     Route::get('/pembayaran/{pembayaran}/bukti', [BerkasController::class, 'buktiPembayaran'])->name('pembayaran.bukti');
     Route::get('/pembayaran/{pembayaran}/kwitansi', [BerkasController::class, 'kwitansi'])->name('pembayaran.kwitansi');
@@ -86,9 +91,10 @@ Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->
         Route::get('/jurnal', LaporanTampil::class)->defaults('jenis', 'jurnal')->name('jurnal');
         Route::get('/tunggakan', LaporanTampil::class)->defaults('jenis', 'tunggakan')->name('tunggakan');
         Route::get('/capaian', LaporanTampil::class)->defaults('jenis', 'capaian')->name('capaian');
+        Route::get('/status-keuangan', LaporanTampil::class)->defaults('jenis', 'status-keuangan')->name('status-keuangan');
         Route::get('/{jenis}/ekspor/{format}', [LaporanController::class, 'ekspor'])
-            ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian'])
-            ->whereIn('format', ['pdf', 'xlsx'])
+            ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian', 'status-keuangan'])
+            ->whereIn('format', ['pdf', 'xlsx', 'csv'])
             ->name('ekspor');
     });
 

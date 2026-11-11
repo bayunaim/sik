@@ -16,7 +16,7 @@ class LaporanController extends Controller
     {
         $user = $request->user();
         abort_unless($user->can('laporan.ekspor'), 403);
-        abort_unless(in_array($jenis, LaporanService::JENIS, true) && in_array($format, ['pdf', 'xlsx'], true), 404);
+        abort_unless(in_array($jenis, LaporanService::JENIS, true) && in_array($format, ['pdf', 'xlsx', 'csv'], true), 404);
 
         $filter = $service->normalisasi($jenis, $request->query());
         $lap = $service->susun($jenis, $filter);
@@ -30,6 +30,10 @@ class LaporanController extends Controller
 
         if ($format === 'xlsx') {
             return Excel::download(new LaporanExport($lap), "{$nama}.xlsx");
+        }
+
+        if ($format === 'csv') {
+            return Excel::download(new \App\Exports\LaporanCsv($lap), "{$nama}.csv", \Maatwebsite\Excel\Excel::CSV);
         }
 
         abort_if(

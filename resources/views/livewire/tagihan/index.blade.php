@@ -94,6 +94,10 @@
                                 @endif
                             </td>
                             <td class="text-end text-nowrap">
+                                @if (!$batal)
+                                    <a href="{{ route('tagihan.cetak', $row->id) }}" target="_blank"
+                                        class="btn btn-sm btn-outline-secondary">Cetak</a>
+                                @endif
                                 @can('tagihan.batalkan')
                                     @if (!$batal && $row->status === 'belum_bayar')
                                         <button class="btn btn-sm btn-outline-danger"

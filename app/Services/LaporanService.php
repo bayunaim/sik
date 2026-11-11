@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class LaporanService
 {
-    public const JENIS = ['jurnal', 'tunggakan', 'capaian'];
+    public const JENIS = ['jurnal', 'tunggakan', 'capaian', 'status-keuangan'];
 
     /** Bersihkan filter dari input (URL/form) dan isi default. Dipakai layar dan ekspor. */
     public function normalisasi(string $jenis, array $in): array
@@ -69,6 +69,7 @@ class LaporanService
             'jurnal' => $this->jurnal($f),
             'tunggakan' => $this->tunggakan($f),
             'capaian' => $this->capaian($f),
+            'status-keuangan' => $this->statusKeuangan($f),
         };
     }
 
@@ -324,6 +325,110 @@ class LaporanService
             'baris' => $baris,
             'total' => $total,
             'info' => 'Rencana adalah total anggaran setahun (Approved). Realisasi hanya dihitung pada rentang tanggal yang dipilih. Penerimaan = pembayaran terverifikasi dan penerimaan non-mahasiswa; pengeluaran = yang sudah disetujui.',
+        ];
+    }
+
+    // ---------------------------------------------------------------- Status Keuangan Mahasiswa (FR-150)
+
+    /**
+     * Satu baris per mahasiswa untuk bagian akademik (validasi KRS dan ujian).
+     * Periode berjalan = semester dan tahun ajaran pada tagihan terbaru, kecuali dipilih lewat filter.
+     */
+    protected function statusKeuangan(array $f): array
+    {
+        $semester = $f['semester'];
+        $tahunAjaran = $f['tahun_ajaran'];
+
+        if ($semester === '' || $tahunAjaran === '') {
+            $terbaru = DB::table('tagihan')->whereNull('deleted_at')
+                ->orderByDesc('tanggal_tagihan')->orderByDesc('id')->first(['semester', 'tahun_ajaran']);
+            if ($terbaru) {
+                $semester = $semester !== '' ? $semester : $terbaru->semester;
+                $tahunAjaran = $tahunAjaran !== '' ? $tahunAjaran : $terbaru->tahun_ajaran;
+            }
+        }
+
+        $dalam = "t.semester = ? AND t.tahun_ajaran = ?";
+        $rows = DB::table('mahasiswa as m')
+            ->join('program_studi as p', 'p.id', '=', 'm.program_studi_id')
+            ->leftJoin('tagihan as t', fn ($j) => $j->on('t.mahasiswa_id', '=', 'm.id')->whereNull('t.deleted_at'))
+            ->whereNull('m.deleted_at')
+            ->when($f['prodi'] !== '', fn ($q) => $q->where('m.program_studi_id', $f['prodi']))
+            ->when($f['angkatan'] !== '', fn ($q) => $q->where('m.angkatan', $f['angkatan']))
+            ->groupBy('m.id', 'm.nim', 'm.nama', 'm.angkatan', 'm.status_akademik', 'p.kode')
+            ->orderBy('p.kode')->orderBy('m.angkatan')->orderBy('m.nim')
+            ->selectRaw("m.nim, m.nama, m.angkatan, m.status_akademik, p.kode as prodi,
+                COALESCE(SUM(CASE WHEN {$dalam} THEN t.nominal END), 0) as total,
+                COALESCE(SUM(CASE WHEN {$dalam} THEN t.terbayar END), 0) as terbayar,
+                COALESCE(SUM(CASE WHEN {$dalam} AND t.nominal > t.terbayar THEN t.nominal - t.terbayar END), 0) as tunggakan,
+                COUNT(CASE WHEN {$dalam} THEN 1 END) as n_periode,
+                COUNT(CASE WHEN {$dalam} AND t.nominal > t.terbayar THEN 1 END) as n_belum,
+                COALESCE(SUM(CASE WHEN t.nominal > t.terbayar THEN t.nominal - t.terbayar END), 0) as tunggakan_semua",
+                [$semester, $tahunAjaran, $semester, $tahunAjaran, $semester, $tahunAjaran,
+                    $semester, $tahunAjaran, $semester, $tahunAjaran])
+            ->get();
+
+        $tTotal = BigDecimal::zero();
+        $tBayar = BigDecimal::zero();
+        $tTunggak = BigDecimal::zero();
+        $tSemua = BigDecimal::zero();
+
+        $baris = $rows->map(function ($r) use (&$tTotal, &$tBayar, &$tTunggak, &$tSemua) {
+            $tTotal = $tTotal->plus($r->total);
+            $tBayar = $tBayar->plus($r->terbayar);
+            $tTunggak = $tTunggak->plus($r->tunggakan);
+            $tSemua = $tSemua->plus($r->tunggakan_semua);
+
+            return [
+                'nim' => $r->nim,
+                'nama' => $r->nama,
+                'prodi' => $r->prodi,
+                'angkatan' => (string) $r->angkatan,
+                'status_akademik' => $r->status_akademik,
+                'total' => (string) BigDecimal::of($r->total)->toScale(2),
+                'terbayar' => (string) BigDecimal::of($r->terbayar)->toScale(2),
+                'tunggakan' => (string) BigDecimal::of($r->tunggakan)->toScale(2),
+                'status_lunas' => (int) $r->n_periode === 0 ? 'Tidak ada tagihan' : ((int) $r->n_belum === 0 ? 'Lunas' : 'Belum lunas'),
+                'tunggakan_semua' => (string) BigDecimal::of($r->tunggakan_semua)->toScale(2),
+            ];
+        })->values();
+
+        $bagian = ['Per '.now()->format('d/m/Y')];
+        $bagian[] = $semester !== '' ? "Semester {$semester} {$tahunAjaran}" : 'Belum ada tagihan';
+        if ($f['prodi'] !== '') {
+            $bagian[] = 'Prodi: '.(ProgramStudi::find($f['prodi'])?->kode ?? '-');
+        }
+        if ($f['angkatan'] !== '') {
+            $bagian[] = 'Angkatan: '.$f['angkatan'];
+        }
+
+        return [
+            'judul' => 'Status Keuangan Mahasiswa',
+            'periode' => implode(' | ', $bagian),
+            'orientasi' => 'landscape',
+            'kolom' => [
+                $this->kol('nim', 'NIM'),
+                $this->kol('nama', 'Nama'),
+                $this->kol('prodi', 'Prodi'),
+                $this->kol('angkatan', 'Angkatan'),
+                $this->kol('status_akademik', 'Status Akademik'),
+                $this->kol('total', 'Total Tagihan (Rp)', 'uang'),
+                $this->kol('terbayar', 'Terbayar (Rp)', 'uang'),
+                $this->kol('tunggakan', 'Tunggakan (Rp)', 'uang'),
+                $this->kol('status_lunas', 'Status Semester Ini'),
+                $this->kol('tunggakan_semua', 'Tunggakan Semua Periode (Rp)', 'uang'),
+            ],
+            'baris' => $baris,
+            'total' => [[
+                'label' => 'TOTAL ('.$baris->count().' mahasiswa)',
+                'nilai' => [
+                    'total' => (string) $tTotal->toScale(2),
+                    'terbayar' => (string) $tBayar->toScale(2),
+                    'tunggakan' => (string) $tTunggak->toScale(2),
+                    'tunggakan_semua' => (string) $tSemua->toScale(2),
+                ],
+            ]],
+            'info' => 'Total, terbayar, tunggakan, dan status lunas dihitung untuk semester dan tahun ajaran di atas. Tunggakan semua periode mencakup seluruh tagihan yang belum lunas. Tagihan yang dibatalkan tidak dihitung; tagihan yang masih menunggu verifikasi belum dianggap terbayar.',
         ];
     }
 
