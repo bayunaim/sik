@@ -24,6 +24,8 @@ return [
             ['label' => 'Status Keuangan Mahasiswa', 'route' => 'laporan.status-keuangan'],
             ['label' => 'Laba Rugi', 'route' => 'laporan.laba-rugi'],
             ['label' => 'Arus Kas', 'route' => 'laporan.arus-kas'],
+            ['label' => 'Buku Besar', 'route' => 'laporan.buku-besar'],
+            ['label' => 'Neraca Saldo', 'route' => 'laporan.neraca-saldo'],
         ],
     ],
 

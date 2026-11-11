@@ -32,6 +32,7 @@ class Tampil extends Component
     #[Url(except: '')] public string $angkatan = '';
     #[Url(except: '')] public string $semester = '';
     #[Url(except: '')] public string $tahun_ajaran = '';
+    #[Url(except: '')] public string $akun = '';
 
     public function mount(string $jenis): void
     {
@@ -67,7 +68,7 @@ class Tampil extends Component
         return [
             'dari' => $this->dari, 'sampai' => $this->sampai, 'tahun_id' => $this->tahun_id,
             'tipe' => $this->tipe, 'prodi' => $this->prodi, 'angkatan' => $this->angkatan,
-            'semester' => $this->semester, 'tahun_ajaran' => $this->tahun_ajaran,
+            'semester' => $this->semester, 'tahun_ajaran' => $this->tahun_ajaran, 'akun' => $this->akun,
         ];
     }
 
@@ -94,6 +95,7 @@ class Tampil extends Component
             'filter' => $filter,
             'daftarTahun' => TahunAnggaran::orderByDesc('tanggal_mulai')->get(),
             'daftarProdi' => ProgramStudi::orderBy('kode')->get(),
+            'daftarAkun' => $this->jenis === 'buku-besar' ? \App\Models\ChartOfAccount::orderBy('kode')->get(['id', 'kode', 'nama']) : collect(),
             'daftarAngkatan' => Mahasiswa::query()->distinct()->orderByDesc('angkatan')->pluck('angkatan'),
             'daftarTahunAjaran' => Tagihan::withTrashed()->distinct()->orderByDesc('tahun_ajaran')->pluck('tahun_ajaran'),
         ]);

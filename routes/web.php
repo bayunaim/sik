@@ -92,8 +92,12 @@ Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->
         Route::get('/tunggakan', LaporanTampil::class)->defaults('jenis', 'tunggakan')->name('tunggakan');
         Route::get('/capaian', LaporanTampil::class)->defaults('jenis', 'capaian')->name('capaian');
         Route::get('/status-keuangan', LaporanTampil::class)->defaults('jenis', 'status-keuangan')->name('status-keuangan');
+        Route::get('/laba-rugi', LaporanTampil::class)->defaults('jenis', 'laba-rugi')->name('laba-rugi');
+        Route::get('/arus-kas', LaporanTampil::class)->defaults('jenis', 'arus-kas')->name('arus-kas');
+        Route::get('/buku-besar', LaporanTampil::class)->defaults('jenis', 'buku-besar')->name('buku-besar');
+        Route::get('/neraca-saldo', LaporanTampil::class)->defaults('jenis', 'neraca-saldo')->name('neraca-saldo');
         Route::get('/{jenis}/ekspor/{format}', [LaporanController::class, 'ekspor'])
-            ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian', 'status-keuangan'])
+            ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian', 'status-keuangan', 'laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'])
             ->whereIn('format', ['pdf', 'xlsx', 'csv'])
             ->name('ekspor');
     });

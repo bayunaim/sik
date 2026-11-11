@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class LaporanService
 {
-    public const JENIS = ['jurnal', 'tunggakan', 'capaian', 'status-keuangan'];
+    public const JENIS = ['jurnal', 'tunggakan', 'capaian', 'status-keuangan', 'laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'];
+
+    /** Laporan yang dihitung dari jurnal: rentang tanggal terisi default awal tahun sampai hari ini. */
+    private const AKUNTANSI = ['laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'];
 
     /** Bersihkan filter dari input (URL/form) dan isi default. Dipakai layar dan ekspor. */
     public function normalisasi(string $jenis, array $in): array
@@ -36,11 +39,17 @@ class LaporanService
             'prodi' => ctype_digit($s('prodi')) ? $s('prodi') : '',
             'angkatan' => ctype_digit($s('angkatan')) ? $s('angkatan') : '',
             'semester' => in_array($s('semester'), Tagihan::SEMESTER, true) ? $s('semester') : '',
+            'akun' => ctype_digit($s('akun')) ? $s('akun') : '',
             'tahun_ajaran' => preg_match('/^\d{4}\/\d{4}$/', $s('tahun_ajaran')) ? $s('tahun_ajaran') : '',
         ];
 
         if ($jenis === 'jurnal') {
             $f['dari'] ??= now()->startOfMonth()->format('Y-m-d');
+            $f['sampai'] ??= now()->format('Y-m-d');
+        }
+
+        if (in_array($jenis, self::AKUNTANSI, true)) {
+            $f['dari'] ??= now()->startOfYear()->format('Y-m-d');
             $f['sampai'] ??= now()->format('Y-m-d');
         }
 
@@ -70,6 +79,10 @@ class LaporanService
             'tunggakan' => $this->tunggakan($f),
             'capaian' => $this->capaian($f),
             'status-keuangan' => $this->statusKeuangan($f),
+            'laba-rugi' => app(LaporanAkuntansi::class)->labaRugi($f),
+            'arus-kas' => app(LaporanAkuntansi::class)->arusKas($f),
+            'buku-besar' => app(LaporanAkuntansi::class)->bukuBesar($f),
+            'neraca-saldo' => app(LaporanAkuntansi::class)->neracaSaldo($f),
         };
     }
 

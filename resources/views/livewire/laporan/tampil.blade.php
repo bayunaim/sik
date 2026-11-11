@@ -78,15 +78,30 @@
                 </div>
             @endif
 
-            @if ($jenis !== 'status-keuangan')
+            @if ($jenis === 'buku-besar')
+                <div>
+                    <label class="form-label small mb-1">Akun</label>
+                    <select class="form-select" wire:model.live="akun">
+                        <option value="">Pilih akun...</option>
+                        @foreach ($daftarAkun as $a)
+                            <option value="{{ $a->id }}">{{ $a->kode }} - {{ $a->nama }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            @if (!in_array($jenis, ['status-keuangan', 'neraca-saldo']))
                 <div>
                     <label
                         class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo dari' : 'Dari tanggal' }}</label>
                     <input type="date" class="form-control" wire:model.live="dari">
                 </div>
+            @endif
+
+            @if ($jenis !== 'status-keuangan')
                 <div>
                     <label
-                        class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo sampai' : 'Sampai tanggal' }}</label>
+                        class="form-label small mb-1">{{ $jenis === 'tunggakan' ? 'Jatuh tempo sampai' : ($jenis === 'neraca-saldo' ? 'Per tanggal' : 'Sampai tanggal') }}</label>
                     <input type="date" class="form-control" wire:model.live="sampai">
                 </div>
             @endif
