@@ -47,7 +47,7 @@
             </div>
         </div>
 
-        @if ($bisaSuratLunas)
+        @if (!empty($bisaSuratLunas))
             <div class="alert alert-success d-flex justify-content-between align-items-center">
                 <span>Seluruh tagihan Anda sudah lunas.</span>
                 <a href="{{ route('portal.surat-lunas') }}" target="_blank" class="btn btn-sm btn-success">Unduh Surat

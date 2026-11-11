@@ -129,7 +129,7 @@ class Index extends Component
     public function render(PembayaranService $svc)
     {
         $m = $this->saya();
-        $data = ['mhs' => $m, 'bisaSuratLunas' => false];
+        $data = ['mhs' => $m];
 
         if ($m) {
             $tagihan = Tagihan::with('komponen')->where('mahasiswa_id', $m->id)
