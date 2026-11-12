@@ -36,7 +36,7 @@ class PengeluaranService
     /** FR-060: ajukan pengeluaran, status awal Pending. */
     public function ajukan(array $d, User $user, ?string $lampiranPath = null): Pengeluaran
     {
-        return DB::transaction(function () use ($d, $user, $lampiranPath) {
+        $hasil = DB::transaction(function () use ($d, $user, $lampiranPath) {
             $anggaran = Anggaran::with('tahun')->find($d['anggaran_id'])
                 ?? throw new DomainException('Kode anggaran tidak ditemukan.');
 
@@ -82,6 +82,10 @@ class PengeluaranService
 
             return $p;
         });
+
+        app(NotifikasiService::class)->pengeluaranMenunggu($hasil);
+
+        return $hasil;
     }
 
     /**
@@ -121,7 +125,7 @@ class PengeluaranService
      */
     public function setujui(int $id, User $user): array
     {
-        return DB::transaction(function () use ($id, $user) {
+        $hasil = DB::transaction(function () use ($id, $user) {
             $p = Pengeluaran::with(['tahun', 'anggaran'])->lockForUpdate()->find($id)
                 ?? throw new DomainException('Pengeluaran tidak ditemukan atau sudah dibatalkan.');
 
@@ -162,12 +166,16 @@ class PengeluaranService
 
             return ['pengeluaran' => $p->refresh(), 'melebihi' => $melebihi];
         });
+
+        app(NotifikasiService::class)->pengeluaranSelesai($hasil['pengeluaran']);
+
+        return $hasil;
     }
 
     /** Tolak dengan alasan. Aturan wewenang: punya hak approval dan bukan pengajunya. */
     public function tolak(int $id, string $alasan, User $user): Pengeluaran
     {
-        return DB::transaction(function () use ($id, $alasan, $user) {
+        $hasil = DB::transaction(function () use ($id, $alasan, $user) {
             $p = Pengeluaran::with('tahun')->lockForUpdate()->find($id)
                 ?? throw new DomainException('Pengeluaran tidak ditemukan atau sudah dibatalkan.');
 
@@ -193,6 +201,10 @@ class PengeluaranService
 
             return $p->refresh();
         });
+
+        app(NotifikasiService::class)->pengeluaranSelesai($hasil);
+
+        return $hasil;
     }
 
     /**
@@ -253,5 +265,7 @@ class PengeluaranService
 
             $p->delete();
         });
+
+        app(NotifikasiService::class)->tandaiDibaca('pengeluaran:'.$id);
     }
 }

@@ -62,6 +62,7 @@
                 </button>
 
                 <ul class="header-nav ms-auto">
+                    <livewire:lonceng />
                     <li class="nav-item dropdown">
                         <a class="nav-link py-0 pe-0" data-coreui-toggle="dropdown" href="#" role="button"
                             aria-expanded="false">

@@ -42,7 +42,7 @@ class PembayaranService
      */
     public function catat(array $d, User $user, ?string $buktiPath = null): Pembayaran
     {
-        return DB::transaction(function () use ($d, $user, $buktiPath) {
+        $hasil = DB::transaction(function () use ($d, $user, $buktiPath) {
             $t = Tagihan::with('tahun')->lockForUpdate()->find($d['tagihan_id'])
                 ?? throw new DomainException('Tagihan tidak ditemukan atau sudah dibatalkan.');
 
@@ -83,6 +83,10 @@ class PembayaranService
 
             return $p;
         });
+
+        app(NotifikasiService::class)->pembayaranMenunggu($hasil);
+
+        return $hasil;
     }
 
     /**
@@ -94,7 +98,7 @@ class PembayaranService
         $tagihanId = Pembayaran::whereKey($pembayaranId)->value('tagihan_id')
             ?? throw new DomainException('Pembayaran tidak ditemukan.');
 
-        return DB::transaction(function () use ($pembayaranId, $tagihanId, $user) {
+        $hasil = DB::transaction(function () use ($pembayaranId, $tagihanId, $user) {
             $t = Tagihan::with(['tahun', 'komponen'])->lockForUpdate()->find($tagihanId)
                 ?? throw new DomainException('Tagihan sudah dibatalkan.');
             $p = Pembayaran::lockForUpdate()->findOrFail($pembayaranId);
@@ -142,6 +146,10 @@ class PembayaranService
 
             return $p->refresh();
         });
+
+        app(NotifikasiService::class)->pembayaranSelesai($hasil);
+
+        return $hasil;
     }
 
     /** FR-042: tolak dengan alasan. */
@@ -150,7 +158,7 @@ class PembayaranService
         $tagihanId = Pembayaran::whereKey($pembayaranId)->value('tagihan_id')
             ?? throw new DomainException('Pembayaran tidak ditemukan.');
 
-        return DB::transaction(function () use ($pembayaranId, $tagihanId, $alasan, $user) {
+        $hasil = DB::transaction(function () use ($pembayaranId, $tagihanId, $alasan, $user) {
             $t = Tagihan::with('tahun')->lockForUpdate()->find($tagihanId)
                 ?? throw new DomainException('Tagihan sudah dibatalkan.');
             $p = Pembayaran::lockForUpdate()->findOrFail($pembayaranId);
@@ -173,6 +181,10 @@ class PembayaranService
 
             return $p->refresh();
         });
+
+        app(NotifikasiService::class)->pembayaranSelesai($hasil);
+
+        return $hasil;
     }
 
     /**

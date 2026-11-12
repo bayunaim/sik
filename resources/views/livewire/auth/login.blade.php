@@ -7,7 +7,7 @@
             <div class="alert alert-success py-2">{{ session('sukses') }}</div>
         @endif
 
-        <form wire:submit="login">
+        <form wire:submit="masuk">
             <div class="mb-3">
                 <label class="form-label">Email atau NIM</label>
                 <input type="text" wire:model="login" autofocus autocomplete="username"

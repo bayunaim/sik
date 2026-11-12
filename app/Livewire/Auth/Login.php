@@ -29,7 +29,11 @@ class Login extends Component
         ];
     }
 
-    public function login()
+    /**
+     * Jangan dinamai `login`: properti `$login` sudah memakai nama itu, dan di browser
+     * `wire:submit="login"` akan terbaca sebagai teks isian, bukan fungsi (form tidak mengirim apa pun).
+     */
+    public function masuk()
     {
         $this->validate();
         $this->ensureNotRateLimited();
