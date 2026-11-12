@@ -12,7 +12,14 @@ return [
     ['label' => 'Penerimaan Dana', 'icon' => 'cil-arrow-circle-bottom', 'route' => 'penerimaan.index', 'can' => 'penerimaan.lihat'],
     ['label' => 'Pengeluaran', 'icon' => 'cil-arrow-circle-top', 'route' => 'pengeluaran.index', 'can' => 'pengeluaran.lihat'],
     ['label' => 'Jurnal Umum', 'icon' => 'cil-book', 'route' => 'jurnal.index', 'can' => 'jurnal.lihat'],
-    ['label' => 'Rekonsiliasi Bank', 'icon' => 'cil-sync', 'route' => 'rekonsiliasi.index', 'can' => 'rekonsiliasi.kelola'],
+    [
+        'label' => 'Rekonsiliasi Bank', 'icon' => 'cil-sync', 'can' => 'rekonsiliasi.kelola',
+        'children' => [
+            ['label' => 'Pencocokan Mutasi', 'route' => 'rekonsiliasi.index'],
+            ['label' => 'Import Mutasi', 'route' => 'rekonsiliasi.import'],
+            ['label' => 'Rekening Bank', 'route' => 'rekonsiliasi.rekening'],
+        ],
+    ],
 
     ['title' => 'Laporan'],
     [

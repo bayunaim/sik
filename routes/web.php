@@ -4,6 +4,7 @@ use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\RekonsiliasiController;
 use App\Http\Middleware\EnsureUserAktif;
 use App\Http\Middleware\WajibGantiPassword;
 use App\Livewire\Anggaran\Index as AnggaranIndex;
@@ -23,6 +24,9 @@ use App\Livewire\Pembayaran\Index as PembayaranIndex;
 use App\Livewire\Penerimaan\Index as PenerimaanIndex;
 use App\Livewire\Pengeluaran\Index as PengeluaranIndex;
 use App\Livewire\Portal\Index as PortalIndex;
+use App\Livewire\Rekonsiliasi\Import as RekonsiliasiImport;
+use App\Livewire\Rekonsiliasi\Index as RekonsiliasiIndex;
+use App\Livewire\Rekonsiliasi\Rekening as RekonsiliasiRekening;
 use App\Livewire\Tagihan\Index as TagihanIndex;
 use App\Livewire\Tagihan\Massal as TagihanMassal;
 use App\Livewire\User\Index as UserIndex;
@@ -85,6 +89,14 @@ Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->
     Route::get('/pengeluaran/{pengeluaran}/lampiran', [BerkasController::class, 'lampiranPengeluaran'])->name('pengeluaran.lampiran');
 
     Route::get('/jurnal', JurnalIndex::class)->name('jurnal.index');
+
+    // Rekonsiliasi bank
+    Route::prefix('rekonsiliasi')->name('rekonsiliasi.')->group(function () {
+        Route::get('/', RekonsiliasiIndex::class)->name('index');
+        Route::get('/import', RekonsiliasiImport::class)->name('import');
+        Route::get('/rekening', RekonsiliasiRekening::class)->name('rekening');
+        Route::get('/import/{impor}/error', [RekonsiliasiController::class, 'error'])->name('import.error');
+    });
 
     // Laporan
     Route::prefix('laporan')->name('laporan.')->group(function () {
