@@ -17,6 +17,25 @@
                 Anggaran</strong>.</div>
     @endunless
 
+    {{-- FR-104 --}}
+    @if (count($aksesCepat))
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <div class="text-body-secondary small mb-2">Akses cepat</div>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach ($aksesCepat as $a)
+                        <a href="{{ $a['url'] }}" class="btn btn-outline-primary btn-sm">
+                            <i class="{{ $a['icon'] }} me-1"></i>{{ $a['label'] }}
+                            @if ($a['badge'] > 0)
+                                <span class="badge bg-danger ms-1">{{ number_format($a['badge'], 0, ',', '.') }}</span>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
     @php $rp = fn ($n) => 'Rp '.number_format((float) $n, 0, ',', '.'); @endphp
 
     <div class="row g-3 mb-3">

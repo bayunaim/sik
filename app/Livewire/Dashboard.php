@@ -7,6 +7,7 @@ use App\Models\Pembayaran;
 use App\Models\Pengeluaran;
 use App\Models\Tagihan;
 use App\Models\TahunAnggaran;
+use App\Services\AksesCepatService;
 use App\Services\DashboardGrafikService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -14,7 +15,7 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Dashboard extends Component
 {
-    public function render(DashboardGrafikService $grafik)
+    public function render(DashboardGrafikService $grafik, AksesCepatService $aksesCepat)
     {
         $user = auth()->user();
         $tahun = TahunAnggaran::aktifSekarang();
@@ -78,6 +79,12 @@ class Dashboard extends Component
                 ->where('status', 'pending')->orderBy('id')->limit(5)->get();
             $d['totalMenungguApproval'] = Pengeluaran::where('status', 'pending')->count();
         }
+
+        // FR-104
+        $d['aksesCepat'] = $aksesCepat->untuk($user, [
+            'verifikasi' => $d['totalMenungguVerifikasi'] ?? 0,
+            'approval' => $d['totalMenungguApproval'] ?? 0,
+        ]);
 
         return view('livewire.dashboard', $d);
     }
