@@ -19,6 +19,7 @@ class Tagihan extends Model
         'semester', 'tahun_ajaran', 'nominal', 'terbayar', 'tanggal_tagihan', 'jatuh_tempo',
         'metode_bayar', 'keterangan', 'status', 'kunci_unik', 'dibuat_oleh',
         'alasan_batal', 'dibatalkan_pada', 'dibatalkan_oleh',
+        'carry_over', 'tahun_asal_id', 'carry_over_pada',
     ];
 
     public const BELUM_BAYAR = 'belum_bayar';
@@ -43,6 +44,8 @@ class Tagihan extends Model
             'tanggal_tagihan' => 'date',
             'jatuh_tempo' => 'date',
             'dibatalkan_pada' => 'datetime',
+            'carry_over' => 'boolean',
+            'carry_over_pada' => 'datetime',
         ];
     }
 
@@ -64,6 +67,11 @@ class Tagihan extends Model
     public function tahun()
     {
         return $this->belongsTo(TahunAnggaran::class, 'tahun_anggaran_id');
+    }
+
+    public function tahunAsal()
+    {
+        return $this->belongsTo(TahunAnggaran::class, 'tahun_asal_id');
     }
 
     // Sisa tagihan sebagai string desimal, dihitung tanpa float

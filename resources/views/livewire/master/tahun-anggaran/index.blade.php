@@ -29,9 +29,9 @@
                         <th>Tahun</th>
                         <th>Periode</th>
                         <th>Status</th>
-                        @can('master.kelola')
+                        @canany(['master.kelola', 'tahun.tutup'])
                             <th class="text-end">Aksi</th>
-                        @endcan
+                        @endcanany
                     </tr>
                 </thead>
                 <tbody>
@@ -49,26 +49,36 @@
                                     <span class="badge bg-secondary">Draft</span>
                                 @endif
                             </td>
-                            @can('master.kelola')
+                            @canany(['master.kelola', 'tahun.tutup'])
                                 <td class="text-end text-nowrap">
-                                    @if ($row->status === 'draft')
-                                        <button class="btn btn-sm btn-outline-success"
-                                            wire:click="aktifkan({{ $row->id }})"
-                                            wire:confirm="Aktifkan tahun anggaran {{ $row->nama }}? Tahun yang sedang aktif akan dikembalikan ke Draft.">
-                                            Aktifkan
-                                        </button>
-                                    @endif
-                                    @if ($row->status !== 'ditutup')
-                                        <button class="btn btn-sm btn-outline-primary"
-                                            wire:click="ubah({{ $row->id }})">Ubah</button>
-                                    @endif
-                                    @if ($row->status === 'draft')
-                                        <button class="btn btn-sm btn-outline-danger"
-                                            wire:click="hapus({{ $row->id }})"
-                                            wire:confirm="Hapus tahun anggaran {{ $row->nama }}?">Hapus</button>
-                                    @endif
+                                    @can('master.kelola')
+                                        @if ($row->status === 'draft')
+                                            <button class="btn btn-sm btn-outline-success"
+                                                wire:click="aktifkan({{ $row->id }})"
+                                                wire:confirm="Aktifkan tahun anggaran {{ $row->nama }}? Tahun yang sedang aktif akan dikembalikan ke Draft.">
+                                                Aktifkan
+                                            </button>
+                                        @endif
+                                        @if ($row->status !== 'ditutup')
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                wire:click="ubah({{ $row->id }})">Ubah</button>
+                                        @endif
+                                        @if ($row->status === 'draft')
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                wire:click="hapus({{ $row->id }})"
+                                                wire:confirm="Hapus tahun anggaran {{ $row->nama }}?">Hapus</button>
+                                        @endif
+                                    @endcan
+                                    @can('tahun.tutup')
+                                        @if ($row->status === 'aktif')
+                                            <button class="btn btn-sm btn-outline-dark"
+                                                wire:click="mulaiTutup({{ $row->id }})">
+                                                <i class="cil-lock-locked me-1"></i>Tutup Tahun
+                                            </button>
+                                        @endif
+                                    @endcan
                                 </td>
-                            @endcan
+                            @endcanany
                         </tr>
                     @empty
                         <tr>
@@ -126,6 +136,82 @@
                             wire:target="simpan">Simpan</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($langkahTutup > 0)
+        <div class="modal-backdrop fade show"></div>
+        <div class="modal fade show d-block" tabindex="-1" wire:keydown.escape="batalTutup">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tutup Tahun Anggaran {{ $pratinjau['tahun'] ?? '' }}</h5>
+                        <button type="button" class="btn-close" wire:click="batalTutup"></button>
+                    </div>
+
+                    @if ($langkahTutup === 1)
+                        <div class="modal-body">
+                            <p class="mb-2">Yang akan terjadi, dalam satu proses (gagal di tengah berarti tidak ada
+                                yang berubah):</p>
+                            <ul class="mb-3">
+                                <li>Tahun {{ $pratinjau['tahun'] }} menjadi <strong>Ditutup</strong> dan tidak bisa
+                                    diubah lagi.</li>
+                                <li>Tahun {{ $pratinjau['tahun_berikut'] }}
+                                    {{ $pratinjau['tahun_berikut_baru'] ? 'dibuat otomatis' : 'sudah ada (Draft)' }}
+                                    dan menjadi <strong>Aktif</strong>.</li>
+                                <li>{{ $pratinjau['anggaran_jumlah'] }} kode anggaran
+                                    ({{ $pratinjau['anggaran_d'] }} penerimaan, {{ $pratinjau['anggaran_k'] }}
+                                    pengeluaran)
+                                    disalin ke tahun {{ $pratinjau['tahun_berikut'] }} berstatus <strong>Draft</strong>
+                                    dan perlu disetujui ulang.</li>
+                                <li>{{ $pratinjau['tagihan_jumlah'] }} tagihan belum lunas dengan total sisa
+                                    <strong>Rp
+                                        {{ number_format((float) $pratinjau['tagihan_sisa'], 0, ',', '.') }}</strong>
+                                    dibawa ke tahun {{ $pratinjau['tahun_berikut'] }} (carry over).
+                                </li>
+                            </ul>
+
+                            @if ($pratinjau['hambatan'] !== [])
+                                <div class="alert alert-danger mb-0">
+                                    <div class="fw-semibold mb-1">Belum bisa ditutup:</div>
+                                    <ul class="mb-0">
+                                        @foreach ($pratinjau['hambatan'] as $h)
+                                            <li>{{ $h }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="batalTutup">Batal</button>
+                            <button type="button" class="btn btn-primary" wire:click="lanjutTutup"
+                                @disabled($pratinjau['hambatan'] !== [])>Lanjut</button>
+                        </div>
+                    @else
+                        <form wire:submit="jalankanTutup">
+                            <div class="modal-body">
+                                <div class="alert alert-warning">
+                                    Penutupan tidak bisa dibatalkan dari aplikasi. Pastikan semua data tahun
+                                    {{ $pratinjau['tahun'] }} sudah benar.
+                                </div>
+                                <label class="form-label">Ketik <strong>{{ $pratinjau['tahun'] }}</strong> untuk
+                                    mengonfirmasi</label>
+                                <input type="text" wire:model="konfirmasiNama" autocomplete="off"
+                                    class="form-control @error('konfirmasiNama') is-invalid @enderror">
+                                @error('konfirmasiNama')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary"
+                                    wire:click="batalTutup">Batal</button>
+                                <button type="submit" class="btn btn-danger" wire:loading.attr="disabled"
+                                    wire:target="jalankanTutup">Tutup Tahun</button>
+                            </div>
+                        </form>
+                    @endif
+                </div>
             </div>
         </div>
     @endif

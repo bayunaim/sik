@@ -91,6 +91,10 @@
                                 @else
                                     <span
                                         class="badge bg-{{ $warna }}">{{ \App\Models\Tagihan::STATUS[$row->status] ?? $row->status }}</span>
+                                    @if ($row->carry_over)
+                                        <span class="badge bg-info text-dark"
+                                            title="Dibawa dari tahun anggaran sebelumnya">Carry over</span>
+                                    @endif
                                 @endif
                             </td>
                             <td class="text-end text-nowrap">

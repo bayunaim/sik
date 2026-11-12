@@ -3,6 +3,8 @@
 namespace App\Livewire\Master\TahunAnggaran;
 
 use App\Models\TahunAnggaran;
+use App\Services\TutupTahunService;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -17,6 +19,12 @@ class Index extends Component
     public string $nama = '';
     public string $tanggal_mulai = '';
     public string $tanggal_selesai = '';
+
+    // Tutup Tahun (FR-120, FR-121): langkah 0 = tertutup, 1 = pratinjau, 2 = konfirmasi ketik nama tahun
+    public ?int $tutupId = null;
+    public int $langkahTutup = 0;
+    public array $pratinjau = [];
+    public string $konfirmasiNama = '';
 
     public function mount(): void
     {
@@ -148,6 +156,62 @@ class Index extends Component
         // Fase 2: tambahkan pengecekan "sudah punya anggaran/transaksi" di sini.
         $tahun->delete();
         session()->flash('sukses', 'Tahun anggaran berhasil dihapus.');
+    }
+
+    /** Langkah 1: tampilkan pratinjau dampak. Belum mengubah data apa pun. */
+    public function mulaiTutup(int $id): void
+    {
+        abort_unless(auth()->user()->can('tahun.tutup'), 403);
+
+        $tahun = TahunAnggaran::findOrFail($id);
+
+        $this->tutupId = $tahun->id;
+        $this->pratinjau = app(TutupTahunService::class)->pratinjau($tahun);
+        $this->konfirmasiNama = '';
+        $this->resetValidation();
+        $this->langkahTutup = 1;
+    }
+
+    /** Langkah 2: minta pengguna mengetik nama tahun. */
+    public function lanjutTutup(): void
+    {
+        abort_unless(auth()->user()->can('tahun.tutup'), 403);
+
+        if ($this->tutupId === null || $this->pratinjau === [] || $this->pratinjau['hambatan'] !== []) {
+            return;
+        }
+
+        $this->langkahTutup = 2;
+    }
+
+    public function jalankanTutup(): void
+    {
+        abort_unless(auth()->user()->can('tahun.tutup'), 403);
+
+        $tahun = TahunAnggaran::findOrFail($this->tutupId);
+
+        if (trim($this->konfirmasiNama) !== $tahun->nama) {
+            $this->addError('konfirmasiNama', "Ketik {$tahun->nama} persis untuk melanjutkan.");
+            return;
+        }
+
+        try {
+            $r = app(TutupTahunService::class)->tutup($tahun->id, auth()->user());
+        } catch (DomainException $e) {
+            session()->flash('gagal', $e->getMessage());
+            $this->batalTutup();
+            return;
+        }
+
+        session()->flash('sukses', "Tahun anggaran {$r['tahun']} ditutup. Tahun {$r['tahun_berikut']} aktif; "
+            ."{$r['anggaran_jumlah']} kode anggaran disalin sebagai Draft dan {$r['tagihan_jumlah']} tagihan dibawa (carry over).");
+        $this->batalTutup();
+    }
+
+    public function batalTutup(): void
+    {
+        $this->reset(['tutupId', 'langkahTutup', 'pratinjau', 'konfirmasiNama']);
+        $this->resetValidation();
     }
 
     public function tutupForm(): void
