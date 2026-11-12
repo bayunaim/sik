@@ -4,7 +4,7 @@ namespace App\Livewire\Import;
 
 use App\Models\ImportLog;
 use App\Models\ImportTemplate;
-use App\Services\ImportMahasiswaService;
+use App\Contracts\SiaProvider;
 use DomainException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -46,7 +46,7 @@ class Index extends Component
         $this->pratinjau = null;
     }
 
-    public function unggah(ImportMahasiswaService $svc): void
+    public function unggah(SiaProvider $svc): void
     {
         abort_unless(auth()->user()->can('import.sia'), 403);
 
@@ -89,7 +89,7 @@ class Index extends Component
         $this->langkah = 2;
     }
 
-    public function buatPratinjau(ImportMahasiswaService $svc): void
+    public function buatPratinjau(SiaProvider $svc): void
     {
         abort_unless(auth()->user()->can('import.sia'), 403);
         if (! app()->runningInConsole()) {
@@ -128,7 +128,7 @@ class Index extends Component
         $this->langkah = 3;
     }
 
-    public function proses(ImportMahasiswaService $svc): void
+    public function proses(SiaProvider $svc): void
     {
         abort_unless(auth()->user()->can('import.sia'), 403);
 
@@ -193,7 +193,7 @@ class Index extends Component
 
     protected function bersihkanPemetaan(): void
     {
-        foreach (ImportMahasiswaService::FIELD as $k => $_) {
+        foreach (app(SiaProvider::class)->field() as $k => $_) {
             $v = $this->mapping[$k] ?? '';
             $this->mapping[$k] = in_array($v, $this->headers, true) ? $v : '';
         }
@@ -202,7 +202,7 @@ class Index extends Component
     public function render()
     {
         return view('livewire.import.index', [
-            'field' => ImportMahasiswaService::FIELD,
+            'field' => app(SiaProvider::class)->field(),
             'riwayat' => ImportLog::with('user')->latest()->limit(10)->get(),
         ]);
     }
