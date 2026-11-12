@@ -94,6 +94,86 @@
         @endif
     </div>
 
+    {{-- FR-102 --}}
+    @if (isset($tren) || isset($tunggakanProdi))
+        <div class="row g-3 mb-3">
+            @isset($tren)
+                <div class="{{ isset($tunggakanProdi) ? 'col-lg-7' : 'col-12' }}">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Tren penerimaan {{ count($tren['bulan']) }} bulan terakhir</span>
+                            <span class="small text-body-secondary">Total {{ $rp($tren['total']) }}</span>
+                        </div>
+                        <div class="card-body">
+                            @if ($tren['kosong'])
+                                <div class="text-body-secondary py-4 text-center">Belum ada penerimaan pada periode ini.
+                                </div>
+                            @else
+                                <div class="d-flex align-items-stretch gap-1" style="height: 210px;" role="img"
+                                    aria-label="Grafik batang penerimaan per bulan">
+                                    @foreach ($tren['bulan'] as $b)
+                                        <div class="flex-fill d-flex flex-column text-center" style="min-width: 0;"
+                                            title="{{ $b['label'] }}{{ $b['berjalan'] ? ' (bulan berjalan)' : '' }}: {{ $rp($b['nilai']) }}">
+                                            <div class="text-body-secondary text-nowrap"
+                                                style="font-size: .65rem; height: 16px;">{{ $b['singkat'] }}</div>
+                                            <div class="flex-grow-1 d-flex align-items-end" style="min-height: 0;">
+                                                <div class="w-100 bg-primary rounded-top {{ $b['berjalan'] ? 'opacity-75' : '' }}"
+                                                    style="height: {{ $b['persen'] }}%;"></div>
+                                            </div>
+                                            <div class="text-body-secondary border-top text-nowrap"
+                                                style="font-size: .65rem;">{{ $b['label'] }}</div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div class="small text-body-secondary mt-2">
+                                    Penerimaan terverifikasi dan non-mahasiswa. Bulan berjalan (warna lebih pudar) belum
+                                    final. jt = juta, M = miliar.
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endisset
+
+            @isset($tunggakanProdi)
+                <div class="{{ isset($tren) ? 'col-lg-5' : 'col-12' }}">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Komposisi tunggakan per prodi</span>
+                            <span class="small text-body-secondary">Total {{ $rp($tunggakanProdi['total']) }}</span>
+                        </div>
+                        <div class="card-body">
+                            @forelse ($tunggakanProdi['item'] as $i)
+                                <div class="mb-3" title="{{ $i['nama'] }}">
+                                    <div class="d-flex justify-content-between small">
+                                        <span><strong>{{ $i['kode'] }}</strong>
+                                            <span
+                                                class="text-body-secondary">{{ number_format($i['jumlah'], 0, ',', '.') }}
+                                                tagihan</span></span>
+                                        <span>{{ $rp($i['nilai']) }}
+                                            ({{ number_format($i['persen'], 1, ',', '.') }}%)
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;" role="progressbar"
+                                        aria-valuenow="{{ $i['persen'] }}" aria-valuemin="0" aria-valuemax="100"
+                                        aria-label="Tunggakan {{ $i['kode'] }}">
+                                        <div class="progress-bar bg-danger" style="width: {{ $i['persen'] }}%"></div>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="text-body-secondary py-4 text-center">Tidak ada tunggakan.</div>
+                            @endforelse
+                            @if (!$tunggakanProdi['kosong'])
+                                <div class="small text-body-secondary">Tagihan belum lunas dan tidak dibatalkan. Persen
+                                    terhadap total tunggakan.</div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endisset
+        </div>
+    @endif
+
     {{-- FR-101 --}}
     <div class="row g-3">
         @can('pembayaran.verifikasi')

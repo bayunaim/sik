@@ -7,13 +7,14 @@ use App\Models\Pembayaran;
 use App\Models\Pengeluaran;
 use App\Models\Tagihan;
 use App\Models\TahunAnggaran;
+use App\Services\DashboardGrafikService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('components.layouts.app')]
 class Dashboard extends Component
 {
-    public function render()
+    public function render(DashboardGrafikService $grafik)
     {
         $user = auth()->user();
         $tahun = TahunAnggaran::aktifSekarang();
@@ -56,6 +57,14 @@ class Dashboard extends Component
             $d['totalTunggakan'] = (float) Tagihan::where('status', '!=', Tagihan::LUNAS)
                 ->selectRaw('COALESCE(SUM(nominal - terbayar),0) as t')->value('t');
             $d['jumlahTunggakan'] = Tagihan::where('status', '!=', Tagihan::LUNAS)->count();
+        }
+
+        // FR-102
+        if ($user->can('penerimaan.lihat')) {
+            $d['tren'] = $grafik->trenPenerimaan();
+        }
+        if ($user->can('tagihan.lihat')) {
+            $d['tunggakanProdi'] = $grafik->tunggakanPerProdi();
         }
 
         // FR-101
