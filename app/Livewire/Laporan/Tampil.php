@@ -33,6 +33,7 @@ class Tampil extends Component
     #[Url(except: '')] public string $semester = '';
     #[Url(except: '')] public string $tahun_ajaran = '';
     #[Url(except: '')] public string $akun = '';
+    #[Url(except: '')] public string $nim = '';
 
     public function mount(string $jenis): void
     {
@@ -68,7 +69,7 @@ class Tampil extends Component
         return [
             'dari' => $this->dari, 'sampai' => $this->sampai, 'tahun_id' => $this->tahun_id,
             'tipe' => $this->tipe, 'prodi' => $this->prodi, 'angkatan' => $this->angkatan,
-            'semester' => $this->semester, 'tahun_ajaran' => $this->tahun_ajaran, 'akun' => $this->akun,
+            'semester' => $this->semester, 'tahun_ajaran' => $this->tahun_ajaran, 'akun' => $this->akun, 'nim' => $this->nim,
         ];
     }
 

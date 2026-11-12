@@ -29,6 +29,7 @@ return [
             ['label' => 'Tunggakan Mahasiswa', 'route' => 'laporan.tunggakan'],
             ['label' => 'Capaian Anggaran', 'route' => 'laporan.capaian'],
             ['label' => 'Status Keuangan Mahasiswa', 'route' => 'laporan.status-keuangan'],
+            ['label' => 'Histori Mahasiswa', 'route' => 'laporan.histori-mahasiswa'],
             ['label' => 'Laba Rugi', 'route' => 'laporan.laba-rugi'],
             ['label' => 'Arus Kas', 'route' => 'laporan.arus-kas'],
             ['label' => 'Buku Besar', 'route' => 'laporan.buku-besar'],

@@ -90,6 +90,10 @@
                             @endcan
                             @can('master.kelola')
                                 <td class="text-end text-nowrap">
+                                    @can('laporan.lihat')
+                                        <a class="btn btn-sm btn-outline-secondary"
+                                            href="{{ route('laporan.histori-mahasiswa', ['nim' => $row->nim]) }}">Histori</a>
+                                    @endcan
                                     <button class="btn btn-sm btn-outline-primary"
                                         wire:click="ubah({{ $row->id }})">Ubah</button>
                                     <button class="btn btn-sm btn-outline-danger" wire:click="hapus({{ $row->id }})"

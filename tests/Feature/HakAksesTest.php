@@ -53,6 +53,7 @@ dataset('halaman', [
     'laporan tunggakan' => [LaporanTampil::class, ['jenis' => 'tunggakan'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan capaian' => [LaporanTampil::class, ['jenis' => 'capaian'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan status keuangan' => [LaporanTampil::class, ['jenis' => 'status-keuangan'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
+    'laporan histori mahasiswa' => [LaporanTampil::class, ['jenis' => 'histori-mahasiswa'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan laba-rugi' => [LaporanTampil::class, ['jenis' => 'laba-rugi'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan arus-kas' => [LaporanTampil::class, ['jenis' => 'arus-kas'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],
     'laporan buku-besar' => [LaporanTampil::class, ['jenis' => 'buku-besar'], ['SuperAdmin', 'Admin Keuangan', 'Pimpinan']],

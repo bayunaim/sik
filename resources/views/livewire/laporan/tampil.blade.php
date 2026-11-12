@@ -78,6 +78,14 @@
                 </div>
             @endif
 
+            @if ($jenis === 'histori-mahasiswa')
+                <div>
+                    <label class="form-label small mb-1">NIM mahasiswa</label>
+                    <input type="text" class="form-control" style="min-width: 220px;" maxlength="30"
+                        placeholder="Ketik NIM lalu tunggu..." wire:model.live.debounce.500ms="nim" autofocus>
+                </div>
+            @endif
+
             @if ($jenis === 'buku-besar')
                 <div>
                     <label class="form-label small mb-1">Akun</label>

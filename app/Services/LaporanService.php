@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Anggaran;
+use App\Models\Mahasiswa;
+use App\Models\Pembayaran;
 use App\Models\ProgramStudi;
 use App\Models\Tagihan;
 use App\Models\TahunAnggaran;
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class LaporanService
 {
-    public const JENIS = ['jurnal', 'tunggakan', 'capaian', 'status-keuangan', 'laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'];
+    public const JENIS = ['jurnal', 'tunggakan', 'capaian', 'status-keuangan', 'histori-mahasiswa', 'laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'];
 
     /** Laporan yang dihitung dari jurnal: rentang tanggal terisi default awal tahun sampai hari ini. */
     private const AKUNTANSI = ['laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'];
@@ -41,6 +43,7 @@ class LaporanService
             'semester' => in_array($s('semester'), Tagihan::SEMESTER, true) ? $s('semester') : '',
             'akun' => ctype_digit($s('akun')) ? $s('akun') : '',
             'tahun_ajaran' => preg_match('/^\d{4}\/\d{4}$/', $s('tahun_ajaran')) ? $s('tahun_ajaran') : '',
+            'nim' => preg_match('/^[A-Za-z0-9._-]{1,30}$/', $s('nim')) ? $s('nim') : '',
         ];
 
         if ($jenis === 'jurnal') {
@@ -79,6 +82,7 @@ class LaporanService
             'tunggakan' => $this->tunggakan($f),
             'capaian' => $this->capaian($f),
             'status-keuangan' => $this->statusKeuangan($f),
+            'histori-mahasiswa' => $this->historiMahasiswa($f),
             'laba-rugi' => app(LaporanAkuntansi::class)->labaRugi($f),
             'arus-kas' => app(LaporanAkuntansi::class)->arusKas($f),
             'buku-besar' => app(LaporanAkuntansi::class)->bukuBesar($f),
@@ -442,6 +446,188 @@ class LaporanService
                 ],
             ]],
             'info' => 'Total, terbayar, tunggakan, dan status lunas dihitung untuk semester dan tahun ajaran di atas. Tunggakan semua periode mencakup seluruh tagihan yang belum lunas. Tagihan yang dibatalkan tidak dihitung; tagihan yang masih menunggu verifikasi belum dianggap terbayar.',
+        ];
+    }
+
+    // ---------------------------------------------------------------- Histori per Mahasiswa (FR-096)
+
+    /**
+     * Buku besar tagihan satu mahasiswa: tagihan terbit, pembayaran, dan pembatalannya,
+     * berurutan menurut tanggal dengan saldo berjalan (sisa yang harus dibayar).
+     *
+     * Aturan saldo (sama dengan laporan Tunggakan):
+     *  - tagihan terbit menambah saldo; pembatalan tagihan menguranginya lagi;
+     *  - hanya pembayaran Terverifikasi yang mengurangi saldo; pembatalan pembayaran menambahnya lagi;
+     *  - pembayaran Pending dan Ditolak tampil sebagai catatan tanpa memengaruhi saldo.
+     * Jika rentang tanggal diisi, transaksi sebelum "dari" dilipat menjadi baris Saldo awal.
+     */
+    protected function historiMahasiswa(array $f): array
+    {
+        $kolom = [
+            $this->kol('tanggal', 'Tanggal'),
+            $this->kol('jenis', 'Jenis'),
+            $this->kol('nomor', 'Nomor'),
+            $this->kol('uraian', 'Uraian'),
+            $this->kol('status', 'Status'),
+            $this->kol('bertambah', 'Bertambah (Rp)', 'uang'),
+            $this->kol('berkurang', 'Berkurang (Rp)', 'uang'),
+            $this->kol('saldo', 'Sisa Tagihan (Rp)', 'uang'),
+        ];
+
+        $kosong = fn (string $periode) => [
+            'judul' => 'Histori Transaksi Mahasiswa', 'periode' => $periode,
+            'orientasi' => 'landscape', 'kolom' => $kolom, 'baris' => collect(), 'total' => [], 'info' => '',
+        ];
+
+        if ($f['nim'] === '') {
+            return $kosong('Masukkan NIM mahasiswa untuk melihat histori transaksinya.');
+        }
+
+        $m = Mahasiswa::withTrashed()->with('programStudi')->where('nim', $f['nim'])->first();
+        if (! $m) {
+            return $kosong("Mahasiswa dengan NIM {$f['nim']} tidak ditemukan.");
+        }
+
+        $nol = BigDecimal::zero();
+        $hari = fn (?string $v): string => Carbon::parse($v)->format('Y-m-d');
+        $rp = fn (string $v): string => 'Rp '.self::format('uang', $v);
+        $peristiwa = [];
+
+        // 1 = tagihan terbit, 2 = pembayaran, 3 = pembatalan: urutan dalam hari yang sama
+        $tagihan = DB::table('tagihan as t')
+            ->join('komponen_biaya as k', 'k.id', '=', 't.komponen_biaya_id')
+            ->where('t.mahasiswa_id', $m->id)   // sengaja tanpa filter deleted_at: tagihan batal tetap tampil
+            ->get(['t.id', 't.nomor', 't.semester', 't.tahun_ajaran', 't.nominal', 't.tanggal_tagihan', 't.status',
+                't.carry_over', 't.deleted_at', 't.dibatalkan_pada', 't.alasan_batal', 'k.nama as komponen']);
+
+        foreach ($tagihan as $t) {
+            $batal = $t->deleted_at !== null;
+            $nominal = BigDecimal::of($t->nominal);
+
+            $peristiwa[] = [
+                'tgl' => $hari($t->tanggal_tagihan), 'urut' => 1, 'id' => $t->id,
+                'jenis' => 'Tagihan', 'nomor' => $t->nomor,
+                'uraian' => "{$t->komponen} {$t->semester} {$t->tahun_ajaran}".($t->carry_over ? ' (carry over)' : ''),
+                'status' => $batal ? 'Dibatalkan' : (Tagihan::STATUS[$t->status] ?? $t->status),
+                'bertambah' => $nominal, 'berkurang' => null,
+            ];
+
+            if ($batal) {
+                $peristiwa[] = [
+                    'tgl' => $hari($t->dibatalkan_pada ?? $t->deleted_at), 'urut' => 3, 'id' => $t->id,
+                    'jenis' => 'Pembatalan Tagihan', 'nomor' => $t->nomor,
+                    'uraian' => 'Dibatalkan'.($t->alasan_batal ? ": {$t->alasan_batal}" : ''),
+                    'status' => 'Dibatalkan',
+                    'bertambah' => null, 'berkurang' => $nominal,
+                ];
+            }
+        }
+
+        $bayar = DB::table('pembayaran as p')
+            ->join('tagihan as t', 't.id', '=', 'p.tagihan_id')
+            ->where('p.mahasiswa_id', $m->id)
+            ->whereNull('p.deleted_at')
+            ->get(['p.id', 'p.nomor_kwitansi', 'p.tanggal_bayar', 'p.nominal', 'p.metode', 'p.status',
+                'p.alasan_tolak', 'p.alasan_batal', 'p.dibatalkan_pada', 't.nomor as nomor_tagihan']);
+
+        foreach ($bayar as $p) {
+            $nominal = BigDecimal::of($p->nominal);
+            $berlaku = in_array($p->status, [Pembayaran::TERVERIFIKASI, Pembayaran::DIBATALKAN], true);
+
+            $uraian = "{$p->metode} untuk tagihan {$p->nomor_tagihan}";
+            if ($p->status === Pembayaran::PENDING) {
+                $uraian .= ' ('.$rp($p->nominal).', menunggu verifikasi)';
+            } elseif ($p->status === Pembayaran::DITOLAK) {
+                $uraian .= ' ('.$rp($p->nominal).', ditolak'.($p->alasan_tolak ? ": {$p->alasan_tolak}" : '').')';
+            }
+
+            $peristiwa[] = [
+                'tgl' => $hari($p->tanggal_bayar), 'urut' => 2, 'id' => $p->id,
+                'jenis' => 'Pembayaran', 'nomor' => $p->nomor_kwitansi ?? '',
+                'uraian' => $uraian, 'status' => Pembayaran::STATUS[$p->status] ?? $p->status,
+                'bertambah' => null, 'berkurang' => $berlaku ? $nominal : null,
+            ];
+
+            if ($p->status === Pembayaran::DIBATALKAN) {
+                $peristiwa[] = [
+                    'tgl' => $hari($p->dibatalkan_pada ?? $p->tanggal_bayar), 'urut' => 3, 'id' => $p->id,
+                    'jenis' => 'Pembatalan Pembayaran', 'nomor' => $p->nomor_kwitansi ?? '',
+                    'uraian' => 'Dibatalkan'.($p->alasan_batal ? ": {$p->alasan_batal}" : ''),
+                    'status' => 'Dibatalkan',
+                    'bertambah' => $nominal, 'berkurang' => null,
+                ];
+            }
+        }
+
+        $urut = collect($peristiwa)->sortBy([['tgl', 'asc'], ['urut', 'asc'], ['id', 'asc']])->values();
+
+        $saldo = $nol;
+        $saldoAwal = $nol;
+        $tTambah = $nol;
+        $tKurang = $nol;
+        $baris = collect();
+
+        foreach ($urut as $e) {
+            if ($f['sampai'] && $e['tgl'] > $f['sampai']) {
+                break;   // urut menurut tanggal, sisanya di luar periode
+            }
+
+            $saldo = $saldo->plus($e['bertambah'] ?? $nol)->minus($e['berkurang'] ?? $nol);
+
+            if ($f['dari'] && $e['tgl'] < $f['dari']) {
+                $saldoAwal = $saldo;   // dilipat menjadi saldo awal
+
+                continue;
+            }
+
+            $tTambah = $tTambah->plus($e['bertambah'] ?? $nol);
+            $tKurang = $tKurang->plus($e['berkurang'] ?? $nol);
+
+            $baris->push([
+                'tanggal' => $this->tgl($e['tgl']),
+                'jenis' => $e['jenis'],
+                'nomor' => $e['nomor'],
+                'uraian' => $e['uraian'],
+                'status' => $e['status'],
+                'bertambah' => $e['bertambah'] ? (string) $e['bertambah']->toScale(2) : null,
+                'berkurang' => $e['berkurang'] ? (string) $e['berkurang']->toScale(2) : null,
+                'saldo' => (string) $saldo->toScale(2),
+            ]);
+        }
+
+        if ($f['dari']) {
+            $baris->prepend([
+                'tanggal' => $this->tgl($f['dari']), 'jenis' => '', 'nomor' => '', 'uraian' => 'Saldo awal',
+                'status' => '', 'bertambah' => null, 'berkurang' => null, 'saldo' => (string) $saldoAwal->toScale(2),
+            ]);
+        }
+
+        $bagian = ["NIM {$m->nim} - {$m->nama}"];
+        $bagian[] = 'Prodi: '.($m->programStudi?->kode ?? '-');
+        $bagian[] = "Angkatan: {$m->angkatan}";
+        $bagian[] = "Status: {$m->status_akademik}";
+        $bagian[] = ($f['dari'] || $f['sampai'])
+            ? 'Periode: '.($f['dari'] ? $this->tgl($f['dari']) : 'awal').' s.d. '.($f['sampai'] ? $this->tgl($f['sampai']) : 'sekarang')
+            : 'Semua periode';
+
+        return [
+            'judul' => 'Histori Transaksi Mahasiswa',
+            'periode' => implode(' | ', $bagian),
+            'orientasi' => 'landscape',
+            'kolom' => $kolom,
+            'baris' => $baris,
+            'total' => [[
+                'label' => 'TOTAL / SISA AKHIR',
+                'nilai' => [
+                    'bertambah' => (string) $tTambah->toScale(2),
+                    'berkurang' => (string) $tKurang->toScale(2),
+                    'saldo' => (string) $saldo->toScale(2),
+                ],
+            ]],
+            'info' => 'Sisa tagihan = tagihan terbit dikurangi pembayaran terverifikasi, dihitung berurutan menurut tanggal. '
+                .'Pembayaran Pending atau Ditolak tampil sebagai catatan dan belum memengaruhi sisa. '
+                .'Tagihan atau pembayaran yang dibatalkan tetap tampil, lengkap dengan baris pembatalannya.'
+                .($f['dari'] ? ' Saldo awal adalah sisa tagihan sebelum tanggal awal periode.' : ''),
         ];
     }
 
