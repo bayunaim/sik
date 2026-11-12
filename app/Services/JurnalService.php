@@ -113,6 +113,65 @@ class JurnalService
         });
     }
 
+    /**
+     * FR-073: jurnal penyesuaian manual oleh yang berhak (jurnal.penyesuaian), wajib beralasan dan tercatat di audit log.
+     * Hanya akun detail yang boleh dipakai (akun induk hanya pengelompok). Tahun anggaran ditentukan dari tanggal.
+     * $baris sama seperti buat(): [['akun_id', 'debit', 'kredit', 'keterangan'?], ...]
+     */
+    public function penyesuaian(string $tanggal, string $alasan, array $baris, User $user): Jurnal
+    {
+        if (! $user->can('jurnal.penyesuaian')) {
+            throw new DomainException('Anda tidak berhak membuat jurnal penyesuaian.');
+        }
+
+        $alasan = trim(preg_replace('/\s+/', ' ', $alasan));
+        if (mb_strlen($alasan) < 5) {
+            throw new DomainException('Alasan penyesuaian wajib diisi (minimal 5 karakter).');
+        }
+
+        try {
+            $tgl = Carbon::parse($tanggal)->startOfDay();
+        } catch (\Throwable) {
+            throw new DomainException('Tanggal jurnal tidak valid.');
+        }
+
+        return DB::transaction(function () use ($tgl, $alasan, $baris, $user) {
+            $tahun = TahunAnggaran::whereDate('tanggal_mulai', '<=', $tgl)->whereDate('tanggal_selesai', '>=', $tgl)->first()
+                ?? throw new DomainException('Tidak ada tahun anggaran yang mencakup tanggal '.$tgl->format('d/m/Y').'.');
+
+            $induk = ChartOfAccount::whereIn('id', collect($baris)->pluck('akun_id')->filter()->unique())
+                ->whereHas('children')->pluck('kode');
+            if ($induk->isNotEmpty()) {
+                throw new DomainException('Akun induk tidak boleh dipakai di jurnal: '.$induk->implode(', ').'. Pilih akun detail.');
+            }
+
+            $jurnal = $this->buat([
+                'tanggal' => $tgl->format('Y-m-d'),
+                'tahun_anggaran_id' => $tahun->id,
+                'jenis' => Jurnal::PENYESUAIAN,
+                'keterangan' => mb_substr('Penyesuaian: '.$alasan, 0, 255),
+            ], $baris, $user);
+
+            activity('jurnal')
+                ->performedOn($jurnal)
+                ->causedBy($user)
+                ->event('penyesuaian')
+                ->withProperties([
+                    'nomor' => $jurnal->nomor,
+                    'alasan' => $alasan,
+                    'total' => (string) $jurnal->total_debit,
+                    'baris' => collect($baris)->map(fn ($b) => [
+                        'akun_id' => (int) $b['akun_id'],
+                        'debit' => (string) BigDecimal::of($b['debit'] ?? 0)->toScale(2),
+                        'kredit' => (string) BigDecimal::of($b['kredit'] ?? 0)->toScale(2),
+                    ])->all(),
+                ])
+                ->log('jurnal penyesuaian dibuat');
+
+            return $jurnal;
+        });
+    }
+
     /** Aturan dasar: pembayaran masuk = Debit Kas/Bank, Kredit Pendapatan (FR-074). */
     public function untukPembayaran(Pembayaran $p, Tagihan $t, User $user): Jurnal
     {
