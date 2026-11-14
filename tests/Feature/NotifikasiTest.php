@@ -29,6 +29,7 @@ it('verifikasi menandai dibaca untuk staf dan memberi tahu mahasiswa', function 
     $admin = userDengan('Admin Keuangan');
     $akunMhs = userDengan('Mahasiswa');
     $t = buatTagihan(buatMahasiswa(['user_id' => $akunMhs->id]), '3000000');
+    $akunMhs->notifications()->delete(); // notifikasi "tagihan terbit" (FR-037) bukan bagian test ini
 
     $p = catatBayar($t, '1000000');
     expect(jenisNotifikasi($admin))->toBe(['pembayaran_menunggu']);
@@ -44,6 +45,7 @@ it('penolakan memberi tahu mahasiswa beserta alasannya', function () {
     $admin = userDengan('Admin Keuangan');
     $akunMhs = userDengan('Mahasiswa');
     $t = buatTagihan(buatMahasiswa(['user_id' => $akunMhs->id]), '3000000');
+    $akunMhs->notifications()->delete(); // notifikasi "tagihan terbit" (FR-037) bukan bagian test ini
 
     $p = catatBayar($t, '1000000');
     app(PembayaranService::class)->tolak($p->id, 'Bukti tidak terbaca', $admin);
@@ -110,6 +112,7 @@ it('pengingat jatuh tempo dikirim sekali per tahap dan melewati tagihan lunas', 
 
     buatTagihan(buatMahasiswa(['user_id' => $akunA->id]), '3000000', null, null,
         ['jatuh_tempo' => today()->addDays(2)->toDateString()]);
+    $akunA->notifications()->delete(); // buang notifikasi "tagihan terbit" (FR-037)
 
     $lunas = buatTagihan(buatMahasiswa(['user_id' => $akunB->id]), '3000000', null, null,
         ['jatuh_tempo' => today()->addDays(2)->toDateString()]);
@@ -129,6 +132,7 @@ it('tagihan yang sudah lewat jatuh tempo mendapat satu notifikasi tahap lewat', 
     $akun = userDengan('Mahasiswa');
     buatTagihan(buatMahasiswa(['user_id' => $akun->id]), '3000000', null, null,
         ['jatuh_tempo' => today()->subDays(5)->toDateString()]);
+    $akun->notifications()->delete(); // buang notifikasi "tagihan terbit" (FR-037)
 
     expect(app(NotifikasiService::class)->kirimJatuhTempo())->toBe(1)
         ->and(app(NotifikasiService::class)->kirimJatuhTempo())->toBe(0)
