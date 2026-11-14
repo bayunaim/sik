@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ImportLog;
+use App\Models\User;
 use App\Services\NotifikasiService;
 use Illuminate\Support\Carbon;
 
@@ -13,6 +14,10 @@ beforeEach(function () {
         'sia.pengingat_import.jendela_awal_semester' => 14,
     ]);
     $this->admin = userDengan('Admin Keuangan');
+
+    // RolePermissionSeeder membuat akun SuperAdmin bawaan yang juga berhak impor; nonaktifkan
+    // agar hanya $this->admin yang menjadi penerima dan jumlahnya pasti.
+    User::role('SuperAdmin')->get()->each->update(['is_active' => false]);
 });
 
 /** Import berhasil yang selesai pada tanggal tertentu (dilakukan Operator supaya bukan penerima pengingat). */
