@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Import;
 
+use App\Jobs\ProsesImportMahasiswa;
 use App\Models\ImportLog;
 use App\Models\ImportTemplate;
 use App\Contracts\SiaProvider;
@@ -30,6 +31,8 @@ class Index extends Component
     public bool $simpanTemplate = true;
     public ?array $pratinjau = null;
     public ?array $hasil = null;
+    public ?string $statusProses = null;   // antre | berjalan | selesai | gagal
+    public ?string $catatanGagal = null;
 
     public function mount(): void
     {
@@ -128,7 +131,8 @@ class Index extends Component
         $this->langkah = 3;
     }
 
-    public function proses(SiaProvider $svc): void
+    /** FR-144: tidak menyimpan di request ini, hanya mengantrekan job lalu memantau statusnya. */
+    public function proses(): void
     {
         abort_unless(auth()->user()->can('import.sia'), 403);
 
@@ -137,31 +141,55 @@ class Index extends Component
             return;
         }
 
-        if (! app()->runningInConsole()) {
-            set_time_limit(300);
-        }
         $log = $this->logAktif();
         $this->bersihkanPemetaan();
 
-        try {
-            $hasil = $svc->simpan($log->id, $svc->baca($log->file_path), $this->mapping, $this->tandaiHilang, auth()->user());
-        } catch (DomainException $e) {
-            $this->addError('proses', $e->getMessage());
+        // Ambil giliran secara atomik: klik ganda atau dua tab tidak bisa mengantrekan import yang sama dua kali.
+        $diambil = ImportLog::where('id', $log->id)->where('status', 'pratinjau')->update(['status' => 'antre']);
+        if ($diambil === 0) {
+            $this->addError('proses', 'Import ini sudah diproses.');
             return;
+        }
+        $log->update(['mapping' => $this->mapping]);
+
+        try {
+            ProsesImportMahasiswa::dispatch($log->id, $this->mapping, $this->tandaiHilang, auth()->id());
         } catch (\Throwable $e) {
             report($e);
-            $log->update(['status' => 'gagal', 'catatan' => mb_substr($e->getMessage(), 0, 500)]);
-            $this->addError('proses', 'Import gagal dan semua perubahan dibatalkan. Detail ada di log aplikasi.');
+
+            if (ImportLog::whereKey($log->id)->value('status') === 'antre') {
+                // Job tidak pernah masuk antrean: kembalikan supaya admin bisa mencoba lagi.
+                ImportLog::whereKey($log->id)->update(['status' => 'pratinjau']);
+                $this->addError('proses', 'Import tidak bisa diantrekan. Coba lagi atau hubungi SuperAdmin.');
+                return;
+            }
+            // Status lain (mis. QUEUE_CONNECTION=sync): job sudah mencatat hasilnya sendiri.
+        }
+
+        $this->pratinjau = null;
+        $this->langkah = 4;
+        $this->periksaStatus();
+    }
+
+    /** Dipanggil wire:poll selama import masih antre atau berjalan. */
+    public function periksaStatus(): void
+    {
+        if (! $this->logId) {
             return;
         }
 
-        // data pribadi: hapus file sumber setelah selesai
-        Storage::disk('local')->delete($log->file_path);
-        $log->update(['file_path' => null]);
+        $log = ImportLog::where('user_id', auth()->id())->find($this->logId);
+        if (! $log) {
+            return;
+        }
 
-        $this->hasil = $hasil->only(['id', 'nama_file', 'jumlah_baru', 'jumlah_berubah', 'jumlah_sama', 'jumlah_gagal', 'jumlah_prodi_baru', 'jumlah_hilang', 'error_path']);
-        $this->pratinjau = null;
-        $this->langkah = 4;
+        $this->statusProses = $log->status;
+
+        if ($log->status === 'selesai') {
+            $this->hasil = $log->only(['id', 'nama_file', 'jumlah_baru', 'jumlah_berubah', 'jumlah_sama', 'jumlah_gagal', 'jumlah_prodi_baru', 'jumlah_hilang', 'error_path']);
+        } elseif ($log->status === 'gagal') {
+            $this->catatanGagal = $log->catatan;
+        }
     }
 
     public function ulang(): void
@@ -174,7 +202,7 @@ class Index extends Component
             }
         }
 
-        $this->reset(['langkah', 'logId', 'berkas', 'headers', 'mapping', 'pratinjau', 'hasil', 'tandaiHilang']);
+        $this->reset(['langkah', 'logId', 'berkas', 'headers', 'mapping', 'pratinjau', 'hasil', 'tandaiHilang', 'statusProses', 'catatanGagal']);
         $this->langkah = 1;
     }
 

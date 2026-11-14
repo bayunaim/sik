@@ -186,7 +186,7 @@
                 <button class="btn btn-primary" wire:click="proses" wire:loading.attr="disabled" wire:target="proses"
                     wire:confirm="Simpan {{ $pratinjau['baru'] }} mahasiswa baru dan {{ $pratinjau['berubah'] }} perubahan?">
                     <span wire:loading.remove wire:target="proses">Simpan ke Database</span>
-                    <span wire:loading wire:target="proses">Menyimpan...</span>
+                    <span wire:loading wire:target="proses">Mengantrekan...</span>
                 </button>
             @else
                 <span class="align-self-center text-body-secondary">Tidak ada perubahan untuk disimpan.</span>
@@ -194,29 +194,52 @@
         </div>
     @endif
 
-    {{-- 4. Selesai --}}
-    @if ($langkah === 4 && $hasil)
-        <div class="alert alert-success">
-            <div class="fw-semibold">Import {{ $hasil['nama_file'] }} selesai.</div>
-            <ul class="mb-0">
-                <li>{{ $hasil['jumlah_baru'] }} mahasiswa baru, {{ $hasil['jumlah_berubah'] }} diperbarui,
-                    {{ $hasil['jumlah_sama'] }} tidak berubah</li>
-                <li>{{ $hasil['jumlah_prodi_baru'] }} program studi baru dibuat</li>
-                @if ($hasil['jumlah_hilang'])
-                    <li>{{ $hasil['jumlah_hilang'] }} mahasiswa ditandai "Tidak Ada di Import"</li>
+    {{-- 4. Antre / selesai / gagal (FR-144) --}}
+    @if ($langkah === 4)
+        @if (in_array($statusProses, ['antre', 'berjalan'], true))
+            <div class="alert alert-info" wire:poll.3s="periksaStatus">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span class="fw-semibold">
+                        {{ $statusProses === 'antre' ? 'Menunggu giliran diproses...' : 'Sedang menyimpan data mahasiswa...' }}
+                    </span>
+                </div>
+                <div class="small mt-1">
+                    Halaman ini boleh ditinggalkan; hasilnya tercatat di Riwayat import. Bila status "Menunggu giliran"
+                    tidak berubah dalam beberapa menit, hubungi SuperAdmin untuk memastikan worker antrean berjalan.
+                </div>
+            </div>
+        @elseif ($statusProses === 'gagal')
+            <div class="alert alert-danger">
+                <div class="fw-semibold">Import gagal dan semua perubahan dibatalkan.</div>
+                @if ($catatanGagal)
+                    <div class="small">{{ $catatanGagal }}</div>
                 @endif
-                <li>{{ $hasil['jumlah_gagal'] }} baris dilewati
-                    @if ($hasil['error_path'])
-                        (<a href="{{ route('import.error', $hasil['id']) }}">unduh CSV</a>)
+            </div>
+            <button class="btn btn-primary" wire:click="ulang">Coba Lagi</button>
+        @elseif ($hasil)
+            <div class="alert alert-success">
+                <div class="fw-semibold">Import {{ $hasil['nama_file'] }} selesai.</div>
+                <ul class="mb-0">
+                    <li>{{ $hasil['jumlah_baru'] }} mahasiswa baru, {{ $hasil['jumlah_berubah'] }} diperbarui,
+                        {{ $hasil['jumlah_sama'] }} tidak berubah</li>
+                    <li>{{ $hasil['jumlah_prodi_baru'] }} program studi baru dibuat</li>
+                    @if ($hasil['jumlah_hilang'])
+                        <li>{{ $hasil['jumlah_hilang'] }} mahasiswa ditandai "Tidak Ada di Import"</li>
                     @endif
-                </li>
-            </ul>
-        </div>
-        <button class="btn btn-primary" wire:click="ulang">Import File Lain</button>
+                    <li>{{ $hasil['jumlah_gagal'] }} baris dilewati
+                        @if ($hasil['error_path'])
+                            (<a href="{{ route('import.error', $hasil['id']) }}">unduh CSV</a>)
+                        @endif
+                    </li>
+                </ul>
+            </div>
+            <button class="btn btn-primary" wire:click="ulang">Import File Lain</button>
+        @endif
     @endif
 
     {{-- Riwayat (FR-144) --}}
-    <div class="card mt-4">
+    <div class="card mt-4" @if ($riwayat->contains(fn($r) => in_array($r->status, ['antre', 'berjalan'], true))) wire:poll.5s @endif>
         <div class="card-header">Riwayat import</div>
         <div class="table-responsive">
             <table class="table table-sm mb-0 align-middle">
@@ -240,8 +263,20 @@
                             <td class="text-end">{{ $r->jumlah_baru }}</td>
                             <td class="text-end">{{ $r->jumlah_berubah }}</td>
                             <td class="text-end">{{ $r->jumlah_gagal }}</td>
-                            <td><span
-                                    class="badge {{ $r->status === 'selesai' ? 'bg-success' : ($r->status === 'gagal' ? 'bg-danger' : 'bg-warning text-dark') }}">{{ ucfirst($r->status) }}</span>
+                            <td>
+                                @php
+                                    $warna =
+                                        [
+                                            'selesai' => 'bg-success',
+                                            'gagal' => 'bg-danger',
+                                            'antre' => 'bg-info text-dark',
+                                            'berjalan' => 'bg-info text-dark',
+                                        ][$r->status] ?? 'bg-warning text-dark';
+                                    $label =
+                                        ['antre' => 'Menunggu', 'berjalan' => 'Diproses'][$r->status] ??
+                                        ucfirst($r->status);
+                                @endphp
+                                <span class="badge {{ $warna }}">{{ $label }}</span>
                             </td>
                         </tr>
                     @empty

@@ -243,7 +243,8 @@ class ImportMahasiswaService
         return DB::transaction(function () use ($logId, $a, $mapping, $tandaiHilang, $user, $now) {
             $log = ImportLog::lockForUpdate()->findOrFail($logId);
 
-            if ($log->status !== 'pratinjau') {
+            // 'berjalan' = diambil worker antrean (FR-144); 'pratinjau' = dipanggil langsung
+            if (! in_array($log->status, ['pratinjau', 'berjalan'], true)) {
                 throw new DomainException('Import ini sudah diproses.');
             }
 
