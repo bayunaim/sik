@@ -8,9 +8,8 @@
 
         @if ($hasil)
             <div class="alert alert-success py-2">
-                {{ $hasil['dibuat'] }} akun dibuat@if ($hasil['dihubungkan'])
-                    , {{ $hasil['dihubungkan'] }} akun lama dihubungkan
-                @endif.
+                {{ $hasil['dibuat'] }} akun
+                dibuat{{ $hasil['dihubungkan'] ? ', ' . $hasil['dihubungkan'] . ' akun lama dihubungkan' : '' }}.
             </div>
         @endif
 
