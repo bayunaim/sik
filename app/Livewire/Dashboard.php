@@ -9,12 +9,16 @@ use App\Models\Tagihan;
 use App\Models\TahunAnggaran;
 use App\Services\AksesCepatService;
 use App\Services\DashboardGrafikService;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('components.layouts.app')]
 class Dashboard extends Component
 {
+    /** Grafik (FR-102) dihitung dari seluruh tabel; cukup disegarkan tiap 2 menit. Kartu angka dan antrean tetap real-time. */
+    private const CACHE_DETIK = 120;
+
     public function render(DashboardGrafikService $grafik, AksesCepatService $aksesCepat)
     {
         $user = auth()->user();
@@ -62,10 +66,10 @@ class Dashboard extends Component
 
         // FR-102
         if ($user->can('penerimaan.lihat')) {
-            $d['tren'] = $grafik->trenPenerimaan();
+            $d['tren'] = Cache::remember('dashboard:tren:'.now()->toDateString(), self::CACHE_DETIK, fn () => $grafik->trenPenerimaan());
         }
         if ($user->can('tagihan.lihat')) {
-            $d['tunggakanProdi'] = $grafik->tunggakanPerProdi();
+            $d['tunggakanProdi'] = Cache::remember('dashboard:tunggakan-prodi:'.now()->toDateString(), self::CACHE_DETIK, fn () => $grafik->tunggakanPerProdi());
         }
 
         // FR-101

@@ -52,6 +52,6 @@ return [
 
     ['title' => 'Sistem'],
     ['label' => 'Import GoFeeder', 'icon' => 'cil-cloud-upload', 'route' => 'import.index', 'can' => 'import.sia'],
-    ['label' => 'Tutup Tahun', 'icon' => 'cil-lock-locked', 'route' => 'tahun.tutup', 'can' => 'tahun.tutup'],
+    ['label' => 'Tutup Tahun', 'icon' => 'cil-lock-locked', 'route' => 'master.tahun.index', 'can' => 'tahun.tutup'],
     ['label' => 'Pengguna & Role', 'icon' => 'cil-people', 'route' => 'user.index', 'can' => 'user.kelola'],
 ];

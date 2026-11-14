@@ -1,5 +1,12 @@
 @php use App\Services\LaporanService as L; @endphp
 <div>
+    @if (session('sukses'))
+        <div class="alert alert-success alert-dismissible fade show">
+            {{ session('sukses') }}
+            <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+        </div>
+    @endif
+
     <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
         <div>
             <h4 class="mb-0">{{ $lap['judul'] }}</h4>

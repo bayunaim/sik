@@ -109,6 +109,7 @@ Route::middleware(['auth', EnsureUserAktif::class, WajibGantiPassword::class])->
         Route::get('/arus-kas', LaporanTampil::class)->defaults('jenis', 'arus-kas')->name('arus-kas');
         Route::get('/buku-besar', LaporanTampil::class)->defaults('jenis', 'buku-besar')->name('buku-besar');
         Route::get('/neraca-saldo', LaporanTampil::class)->defaults('jenis', 'neraca-saldo')->name('neraca-saldo');
+        Route::get('/unduh/{berkas}', [LaporanController::class, 'unduh'])->name('unduh');
         Route::get('/{jenis}/ekspor/{format}', [LaporanController::class, 'ekspor'])
             ->whereIn('jenis', ['jurnal', 'tunggakan', 'capaian', 'status-keuangan', 'histori-mahasiswa', 'laba-rugi', 'arus-kas', 'buku-besar', 'neraca-saldo'])
             ->whereIn('format', ['pdf', 'xlsx', 'csv'])
