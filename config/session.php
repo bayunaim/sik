@@ -38,6 +38,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Batas Tidak Aktif (FR-004)
+    |--------------------------------------------------------------------------
+    |
+    | Menit tanpa aktivitas pengguna sebelum sesi diakhiri. 0 = nonaktif.
+    | Polling otomatis (lonceng, status import) tidak dihitung sebagai aktivitas.
+    | 'lifetime' di atas tetap menjadi batas keras umur sesi.
+    |
+    */
+
+    'idle_timeout' => (int) env('SESSION_IDLE_MINUTES', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
     |

@@ -13,7 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // FR-004: grup "web" agar /livewire/update juga kena (middleware route tidak ikut ke sana)
+        $middleware->web(append: [
+            \App\Http\Middleware\TimeoutSesiIdle::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
