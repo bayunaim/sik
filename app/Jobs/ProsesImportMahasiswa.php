@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Contracts\SiaProvider;
 use App\Models\ImportLog;
 use App\Models\User;
+use App\Services\NotifikasiService;
 use DomainException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -50,6 +51,9 @@ class ProsesImportMahasiswa implements ShouldQueue
         $sia->simpan($log->id, $sia->baca($log->file_path), $this->mapping, $this->tandaiHilang, $user);
 
         $this->hapusBerkas($log->fresh());
+
+        // FR-145: import sudah dilakukan, pengingat yang belum dibaca tidak berlaku lagi
+        app(NotifikasiService::class)->pengingatImportSelesai();
     }
 
     public function failed(Throwable $e): void

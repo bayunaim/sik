@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\ImportLog;
 use App\Models\Pembayaran;
 use App\Models\Pengeluaran;
 use App\Models\Tagihan;
 use App\Models\User;
 use App\Notifications\NotifikasiAplikasi;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
@@ -115,57 +117,6 @@ class NotifikasiService
     }
 
     /**
-     * FR-037: kabari mahasiswa bahwa tagihan terbit. Satu notifikasi per tagihan dan hanya sekali (ref),
-     * jadi pemanggilan ulang atau job yang berjalan dua kali tidak mengirim ganda. Mahasiswa yang belum
-     * punya akun, akun nonaktif, tagihan lunas, dan tagihan yang sudah dibatalkan dilewati.
-     *
-     * @param  array<int,int>  $tagihanIds
-     * @return int jumlah notifikasi yang dikirim
-     */
-    public function tagihanTerbit(array $tagihanIds): int
-    {
-        $terkirim = 0;
-
-        foreach (array_chunk(array_values(array_unique($tagihanIds)), 500) as $potong) {
-            $this->aman(function () use ($potong, &$terkirim) {
-                $daftar = Tagihan::query()
-                    ->with(['mahasiswa.user', 'komponen'])
-                    ->whereIn('id', $potong)
-                    ->where('status', '!=', Tagihan::LUNAS)
-                    ->get();
-
-                $sudah = DatabaseNotification::query()
-                    ->where('type', NotifikasiAplikasi::class)
-                    ->whereIn('data->ref', $daftar->map(fn (Tagihan $t) => 'tagihan-terbit:'.$t->id)->all())
-                    ->get()
-                    ->map(fn ($n) => $n->data['ref'] ?? null)
-                    ->filter()
-                    ->flip();
-
-                foreach ($daftar as $t) {
-                    $user = $t->mahasiswa?->user;
-                    $ref = 'tagihan-terbit:'.$t->id;
-                    if (! $user || ! $user->is_active || $sudah->has($ref)) {
-                        continue;
-                    }
-
-                    $user->notify(new NotifikasiAplikasi(
-                        'tagihan_terbit',
-                        'Tagihan baru terbit',
-                        "{$t->nomor} ({$t->komponen?->nama}): ".$this->rupiah($t->nominal)
-                            .($t->jatuh_tempo ? ', jatuh tempo '.$t->jatuh_tempo->format('d/m/Y') : '').'.',
-                        route('portal.index', [], false),
-                        $ref,
-                    ));
-                    $terkirim++;
-                }
-            });
-        }
-
-        return $terkirim;
-    }
-
-    /**
      * Pengingat jatuh tempo ke mahasiswa. Dua tahap per tagihan, masing-masing sekali saja:
      * "segera" (jatuh tempo dalam $hari hari ke depan) dan "lewat" (sudah lewat jatuh tempo).
      * Tagihan lunas, tagihan yang pembayarannya sedang menunggu verifikasi, dan tahun yang sudah ditutup dilewati.
@@ -211,6 +162,95 @@ class NotifikasiService
             });
 
         return $terkirim;
+    }
+
+    /**
+     * FR-145: pengingat import GoFeeder ke yang berhak mengimpor. Satu pengingat per periode dan per penerima:
+     * - awal semester: dalam jendela setelah tanggal mulai semester dan belum ada import berhasil sejak tanggal itu;
+     * - mingguan: import berhasil terakhir lebih tua dari batas hari (atau belum pernah ada).
+     * Bila keduanya jatuh tempo, yang dikirim hanya pengingat awal semester.
+     *
+     * @return int jumlah penerima yang diberi pengingat
+     */
+    public function kirimPengingatImport(?Carbon $hari = null): int
+    {
+        $hari = ($hari ?? today())->copy()->startOfDay();
+        $terakhirRaw = ImportLog::where('status', 'selesai')->max('updated_at');
+        $terakhir = $terakhirRaw ? Carbon::parse($terakhirRaw) : null;
+        $cfg = (array) config('sia.pengingat_import');
+
+        $pengingat = $this->pengingatAwalSemester($hari, $terakhir, (array) ($cfg['awal_semester'] ?? []), (int) ($cfg['jendela_awal_semester'] ?? 14))
+            ?? $this->pengingatMingguan($hari, $terakhir, (int) ($cfg['hari_maksimal'] ?? 7));
+
+        if ($pengingat === null) {
+            return 0;
+        }
+
+        [$ref, $judul, $pesan] = $pengingat;
+
+        $penerima = $this->penerima('import.sia')
+            ->reject(fn (User $u) => $u->notifications()->where('data->ref', $ref)->exists())
+            ->values();
+
+        $this->kirim($penerima, new NotifikasiAplikasi(
+            'pengingat_import',
+            $judul,
+            $pesan,
+            route('import.index', [], false),
+            $ref,
+        ));
+
+        return $penerima->count();
+    }
+
+    /** @return array{0:string,1:string,2:string}|null */
+    protected function pengingatAwalSemester(Carbon $hari, ?Carbon $terakhir, array $tanggalMulai, int $jendela): ?array
+    {
+        foreach ($tanggalMulai as $bbhh) {
+            if (! preg_match('/^(\d{2})-(\d{2})$/', (string) $bbhh, $m) || ! checkdate((int) $m[1], (int) $m[2], $hari->year)) {
+                continue;
+            }
+
+            $mulai = Carbon::create($hari->year, (int) $m[1], (int) $m[2])->startOfDay();
+            $dalamJendela = $hari->betweenIncluded($mulai, $mulai->copy()->addDays(max(1, $jendela) - 1));
+
+            if ($dalamJendela && ($terakhir === null || $terakhir->lt($mulai))) {
+                return [
+                    'pengingat-import:semester:'.$mulai->toDateString(),
+                    'Saatnya import data mahasiswa awal semester',
+                    'Semester dimulai '.$mulai->format('d/m/Y').' dan belum ada import GoFeeder sejak itu. '
+                        .'Import dulu supaya tagihan tidak salah sasaran.',
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /** @return array{0:string,1:string,2:string}|null */
+    protected function pengingatMingguan(Carbon $hari, ?Carbon $terakhir, int $hariMaksimal): ?array
+    {
+        if ($terakhir !== null && $terakhir->gte($hari->copy()->subDays($hariMaksimal))) {
+            return null;
+        }
+
+        return [
+            'pengingat-import:mingguan:'.$hari->isoWeekYear().'-W'.str_pad((string) $hari->isoWeek(), 2, '0', STR_PAD_LEFT),
+            "Import GoFeeder sudah lebih dari {$hariMaksimal} hari",
+            $terakhir
+                ? 'Import berhasil terakhir '.$terakhir->format('d/m/Y').'. Perbarui data mahasiswa dari GoFeeder.'
+                : 'Belum pernah ada import yang berhasil. Impor data mahasiswa dari GoFeeder.',
+        ];
+    }
+
+    /** Import berhasil: pengingat import yang belum dibaca tidak berlaku lagi. */
+    public function pengingatImportSelesai(): void
+    {
+        $this->aman(fn () => DatabaseNotification::query()
+            ->where('type', NotifikasiAplikasi::class)
+            ->whereNull('read_at')
+            ->where('data->ref', 'like', 'pengingat-import:%')
+            ->update(['read_at' => now()]));
     }
 
     /** Tandai dibaca semua notifikasi yang belum dibaca dengan ref ini (semua penerima). */
