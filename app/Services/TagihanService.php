@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\KirimNotifikasiTagihanTerbit;
 use App\Models\Anggaran;
 use App\Models\KomponenBiaya;
 use App\Models\Mahasiswa;
@@ -13,6 +14,7 @@ use DomainException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 class TagihanService
 {
@@ -24,7 +26,7 @@ class TagihanService
      */
     public function buat(array $data, User $user): Tagihan
     {
-        return DB::transaction(function () use ($data, $user) {
+        $tagihan = DB::transaction(function () use ($data, $user) {
             $mhs = Mahasiswa::findOrFail($data['mahasiswa_id']);
             $komponen = KomponenBiaya::where('is_active', true)->find($data['komponen_biaya_id'])
                 ?? throw new DomainException('Komponen biaya tidak ditemukan atau nonaktif.');
@@ -78,6 +80,11 @@ class TagihanService
 
             return $tagihan;
         });
+
+        // FR-037: setelah commit, satu tagihan jadi langsung dikirim (gagal kirim tidak membatalkan tagihan)
+        app(NotifikasiService::class)->tagihanTerbit([$tagihan->id]);
+
+        return $tagihan;
     }
 
     /** Pratinjau tarif untuk form (tanpa menyimpan apa pun). */
@@ -147,7 +154,9 @@ class TagihanService
         }
 
         try {
-            return DB::transaction(function () use ($p, $mahasiswaIds, $user) {
+            $idBaru = [];
+
+            $hasil = DB::transaction(function () use ($p, $mahasiswaIds, $user, &$idBaru) {
                 $r = $this->rencanaMassal($p, $mahasiswaIds, $user);
 
                 if (empty($r['siap'])) {
@@ -194,6 +203,11 @@ class TagihanService
                         ->update([
                             'nomor' => DB::raw("CONCAT('TGH/', YEAR(tanggal_tagihan), '/', LPAD(id, 6, '0'))"),
                         ]);
+
+                    // id tagihan batch ini, untuk notifikasi sesudah commit (FR-037)
+                    array_push($idBaru, ...DB::table('tagihan')
+                        ->whereIn('kunci_unik', array_column($potongan, 'kunci_unik'))
+                        ->pluck('id')->all());
                 }
 
                 activity('tagihan')
@@ -217,6 +231,10 @@ class TagihanService
                     'lewati' => $r['lewati'],
                 ];
             });
+
+            $this->antrekanNotifikasiTerbit($idBaru);
+
+            return $hasil;
         } catch (UniqueConstraintViolationException) {
             throw new DomainException('Ada tagihan baru yang masuk saat proses berjalan. Seluruh batch dibatalkan, buat pratinjau ulang.');
         } finally {
@@ -225,6 +243,18 @@ class TagihanService
     }
 
     /** Menentukan siapa yang siap ditagih dan siapa yang dilewati (beserta alasan). */
+    /** FR-037: lewat antrean (FR-144) agar penerbitan ribuan tagihan tidak menunggu notifikasi. */
+    protected function antrekanNotifikasiTerbit(array $ids): void
+    {
+        try {
+            foreach (array_chunk($ids, 500) as $potong) {
+                KirimNotifikasiTagihanTerbit::dispatch($potong);
+            }
+        } catch (Throwable $e) {
+            report($e); // tagihan sudah terbit dan tersimpan; notifikasi tidak boleh membatalkannya
+        }
+    }
+
     protected function rencanaMassal(array $p, array $mahasiswaIds, User $user): array
     {
         $ids = array_values(array_unique(array_map('intval', $mahasiswaIds)));

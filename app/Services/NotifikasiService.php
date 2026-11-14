@@ -115,6 +115,57 @@ class NotifikasiService
     }
 
     /**
+     * FR-037: kabari mahasiswa bahwa tagihan terbit. Satu notifikasi per tagihan dan hanya sekali (ref),
+     * jadi pemanggilan ulang atau job yang berjalan dua kali tidak mengirim ganda. Mahasiswa yang belum
+     * punya akun, akun nonaktif, tagihan lunas, dan tagihan yang sudah dibatalkan dilewati.
+     *
+     * @param  array<int,int>  $tagihanIds
+     * @return int jumlah notifikasi yang dikirim
+     */
+    public function tagihanTerbit(array $tagihanIds): int
+    {
+        $terkirim = 0;
+
+        foreach (array_chunk(array_values(array_unique($tagihanIds)), 500) as $potong) {
+            $this->aman(function () use ($potong, &$terkirim) {
+                $daftar = Tagihan::query()
+                    ->with(['mahasiswa.user', 'komponen'])
+                    ->whereIn('id', $potong)
+                    ->where('status', '!=', Tagihan::LUNAS)
+                    ->get();
+
+                $sudah = DatabaseNotification::query()
+                    ->where('type', NotifikasiAplikasi::class)
+                    ->whereIn('data->ref', $daftar->map(fn (Tagihan $t) => 'tagihan-terbit:'.$t->id)->all())
+                    ->get()
+                    ->map(fn ($n) => $n->data['ref'] ?? null)
+                    ->filter()
+                    ->flip();
+
+                foreach ($daftar as $t) {
+                    $user = $t->mahasiswa?->user;
+                    $ref = 'tagihan-terbit:'.$t->id;
+                    if (! $user || ! $user->is_active || $sudah->has($ref)) {
+                        continue;
+                    }
+
+                    $user->notify(new NotifikasiAplikasi(
+                        'tagihan_terbit',
+                        'Tagihan baru terbit',
+                        "{$t->nomor} ({$t->komponen?->nama}): ".$this->rupiah($t->nominal)
+                            .($t->jatuh_tempo ? ', jatuh tempo '.$t->jatuh_tempo->format('d/m/Y') : '').'.',
+                        route('portal.index', [], false),
+                        $ref,
+                    ));
+                    $terkirim++;
+                }
+            });
+        }
+
+        return $terkirim;
+    }
+
+    /**
      * Pengingat jatuh tempo ke mahasiswa. Dua tahap per tagihan, masing-masing sekali saja:
      * "segera" (jatuh tempo dalam $hari hari ke depan) dan "lewat" (sudah lewat jatuh tempo).
      * Tagihan lunas, tagihan yang pembayarannya sedang menunggu verifikasi, dan tahun yang sudah ditutup dilewati.
